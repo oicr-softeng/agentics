@@ -66,6 +66,10 @@ def run(*args):
     return subprocess.run(args, capture_output=True, text=True).stdout
 
 changed = run("git", "diff", "--name-only", base, "--", "template/", "docs/").split()
+# A file git has never seen is absent from every diff, and between releases a new file is usually
+# exactly that, so the working-tree reading has to add untracked files itself.
+untracked = run("git", "ls-files", "--others", "--exclude-standard", "--", "template/", "docs/").split()
+changed += untracked
 existing = set(run("git", "ls-tree", "-r", "--name-only", base).split())
 
 grew, shrunk, new = [], [], []
@@ -85,7 +89,7 @@ net = sum(delta for _, delta in grew + shrunk)
 print(f"  {net:+d} characters net across {len(grew) + len(shrunk)} file(s) "
       f"({len(new)} new, {sum(d for _, d in new):+d})")
 
-always = {"template/AGENTS.md", "template/CLAUDE.md"}
+always = {"template/AGENTS.md", "template/AGENTS.project.md", "template/CLAUDE.md"}
 for line in run("git", "show", "HEAD:template/AGENTS.md").splitlines():
     if line.startswith("- Starting a session"):
         always |= {f"template/{m}" for m in re.findall(r"`(conventions/[\w.-]+\.md)`", line)}
@@ -104,6 +108,11 @@ for line in run("git", "diff", "--numstat", base, "--", "template/", "docs/").sp
     parts = line.split()
     if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
         ins += int(parts[0]); dele += int(parts[1])
+for path in untracked:
+    try:
+        ins += len(open(path).read().splitlines())
+    except OSError:
+        pass
 if ins:
     shown = "no lines removed at all" if not dele else f"{ins/dele:.1f} lines added per line removed"
     print(f"  {ins} lines added, {dele} removed: {shown}")

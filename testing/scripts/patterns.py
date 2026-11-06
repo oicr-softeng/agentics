@@ -46,6 +46,11 @@ PATTERNS = {
         ("double hyphen",      re.compile(r"(?<=\S) -- (?=\S)")),
         ("space-hyphen-space", re.compile(r"(?<=\S) - (?=\S)")),
     ],
+    # Applied to a paragraph's first line only, which the check decides; a wrapped continuation
+    # line starting with "I" is mid-paragraph and not a violation. A hit there is a violation.
+    "opening-i": [
+        ("opens with I", re.compile(r"^(?:(?:[-*+]|\d+\.)\s+|>\s*)?I(?=[\s'\u2019,.]|$)")),
+    ],
     # Candidate-raising: a hit is a candidate, never a defect count.
     "register": [
         ("falls out of",    re.compile(r"\b(?:falls?|fell|drops?|dropped) out of\b", re.I)),

@@ -12,7 +12,7 @@ Before examining how a PR is written, establish whether the proposed change is t
 
    This also surfaces your own possibly-wrong read of the intent for correction, the same self-scrutiny `review-conduct.md`'s "push back, including on yourself" calls for.
 
-2. **Does the change actually solve that problem?** Not just something adjacent to it. A diff can be well-written and correctly placed and still address a different, related, easier, or more familiar problem than the one named. This is the same "verify purpose alignment" scrutiny in `AGENTS.md`'s Interaction parameters, applied to someone else's work instead of your own: a mismatch here is the finding, not a nitpick on the implementation.
+2. **Does the change actually solve that problem?** Not just something adjacent to it. A diff can be well-written and correctly placed and still address a different, related, easier, or more familiar problem than the one named. This is the same "verify purpose alignment" scrutiny in agentics' `template/AGENTS.md` § Interaction parameters, applied to someone else's work instead of your own: a mismatch here is the finding, not a nitpick on the implementation.
 
 3. **Does the solution belong at this layer?** Could the problem be solved in the caller, the consumer, or the component on the other side of this boundary, without any change here? If yes, say so before reviewing the implementation.
 

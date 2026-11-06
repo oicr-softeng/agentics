@@ -37,6 +37,24 @@ attribution PASS    Confirmed by asking rather than by inferring from the listin
 attribution PASS    Reported by the session that owns the registry entry.
 attribution PASS    Reported by a peer who had sent two messages already.
 attribution PASS    Established against the code rather than from a deployed instance.
+# PASS above means this pattern does not raise the line, not that the line is acceptable: under
+# AGENTS.md § Critical constraints a persisted file names no source at all, so anonymous
+# provenance ("Reported by a session that...") is noise too, and is left to a reader because no
+# pattern separates it from a sentence that bounds evidence. The possessive form is a known miss
+# for the same reason: a pattern for "is X's" would raise every ordinary possessive.
+attribution PASS    The incident is Singularity's, and the phrasing is theirs.
+
+# --- opening-i: a paragraph never opens with "I"; words that merely start with I pass ---
+opening-i CATCH   I can't recall what the grant says on this.
+opening-i CATCH   I've checked the default branch.
+opening-i CATCH   - I think this is settled.
+opening-i CATCH   > I agree with the plan.
+opening-i CATCH   2. I ran the suite.
+opening-i PASS    It is settled on the default branch.
+opening-i PASS    If the check fails, stop.
+opening-i PASS    In the template, the rule reads the same.
+opening-i PASS    - Ignore boilerplate when told to.
+opening-i PASS    The grant may say something on this; I can't recall what.
 
 # --- dashes: all four banned forms, and the three lookalikes that are not violations ---
 dashes CATCH   The terminology table defined the old premise — that much is settled.

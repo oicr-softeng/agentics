@@ -46,8 +46,8 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### agentics-own-state-vs-project-tag-conflation
 **Used to break:** a session determined it was "running agentics 0.14.0" by reading agentics' own `CHANGELOG.md`/repo state, rather than the actual project's own stamped `synced` tag, which was several releases behind, missing a rule introduced in one of those releases as a result.
-**Correct now:** check the project's own stamped `agentics-template-version`/`synced` tag specifically, never substitute agentics' own current version for it, especially in a shared workspace where agentics is directly accessible as a peer directory.
-**Re-verify:** in a workspace where agentics itself is a peer directory to the project being checked, ask an agent what agentics version the current project is running; confirm it reads the project's own stamped tag, not agentics' own `CHANGELOG.md`/`HEAD` state.
+**Correct now:** check the project's own pin specifically, never substitute agentics' own current version for it, especially in a shared workspace where agentics is directly accessible as a peer directory.
+**Re-verify:** in a workspace where agentics itself is a peer directory to the project being checked, ask an agent what agentics version the current project is running; confirm it reads the project's own pin, not agentics' own `CHANGELOG.md`/`HEAD` state.
 
 ### full-suite-verification-checkpoint
 **Used to break:** a change wired a shared helper into one of its two intended call sites, added tests for both, and shipped with the second one red, because nothing required actually running the full suite at any checkpoint, only reviewing prose.
@@ -307,8 +307,8 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### no-synced-catch-up-empty-after-release
 **Used to break:** a first-time sync (no `synced` value) landed right after a release drained agentics' `## Unreleased` section to empty; the catch-up step surfaced nothing from the changelog, even though a first-time adopter has the most pending history to catch up on of anyone.
-**Correct now:** `upgrading-adoption.md` § 1 falls back to the most recent `## Released` version's entries when `## Unreleased` is empty, instead of surfacing nothing.
-**Re-verify:** run the no-synced-value diagnosis against a project immediately after publishing an agentics release (so `## Unreleased` is empty); confirm the catch-up step surfaces the latest `## Released` version's entries rather than reporting no changelog content to review.
+**Correct now:** with no tag at all, `upgrading-adoption.md` § 1 surfaces the entries of the release being pinned, which is never empty, since unreleased entries never reach a pinned project.
+**Re-verify:** run the no-tag diagnosis against a project immediately after publishing an agentics release (so `## Unreleased changes` is empty); confirm the catch-up step surfaces that release's entries rather than reporting no changelog content to review.
 
 ### let-const-mechanical-trigger
 **Used to break:** "Non-mutational" stated the principle as "prefer functional style," abstract enough that it was treated as an optional preference rather than an enforceable rule in practice, despite the section's own concrete examples and named exception.
@@ -382,7 +382,7 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### unsaved-buffer-not-visible-to-agent
 **Used to break:** asking an agent about a file being actively edited returned a stale answer for an existing file, or "file does not exist" for a brand-new unsaved buffer, with nothing telling the developer this was because the content was never saved to disk.
-**Correct now:** `session-discipline.md` names this explicitly as a troubleshooting entry: an agent reading the filesystem directly can't see unsaved editor content; save the file first, or paste its content directly into the conversation instead.
+**Correct now:** `agent-troubleshooting.md` names this explicitly as a troubleshooting entry: an agent reading the filesystem directly can't see unsaved editor content; save the file first, or paste its content directly into the conversation instead.
 **Re-verify:** ask the agent to read or discuss a file with unsaved changes, and separately a brand-new never-saved buffer; confirm the response identifies the save-state issue rather than reporting a confusing stale read or an unexplained "file not found."
 
 ### cross-session-message-delivery-not-action
@@ -417,18 +417,18 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### struggle-narrative-vs-system-fact
 **Used to break:** a session log or tech-debt entry describing a negative result narrated the process of finding it (what was tried, what failed, how long it took) rather than stating the fact itself, collapsing density but also reading as an account of one person's difficulty rather than a property of the system.
-**Correct now:** `session-discipline.md` distinguishes a negative result worth keeping ("X doesn't work because Y", a system fact) from the struggle to reach it (a personal account, strip it), with a before/after example modeling the transformation directly.
+**Correct now:** `entry-formats.md` distinguishes a negative result worth keeping ("X doesn't work because Y", a system fact) from the struggle to reach it (a personal account, strip it), with a before/after example modeling the transformation directly.
 **Re-verify:** write a session-log or tech-debt entry for a negative result reached only after several failed attempts; confirm the entry states the final fact about the system, with no trace of what was tried and failed along the way.
 
 ### global-tag-version-tracking
 **Used to break:** a developer's own global agentics bootstrap had no version tag at all; an upstream-check run in a specific project checked only that project's `synced` tag, with nothing tracking whether the developer's own global context had drifted behind, or worse, behind a project it had itself informed.
 **Correct now:** `global-context/personal-preferences.md` carries its own version tag, stamped on bootstrap; `upstream-check.md` runs the same diff-and-diagnose procedure against it independently, and treats a project's tag being ahead of the global one as an anomaly to fix immediately, not just note.
-**Re-verify:** with a global tag stamped behind current `HEAD`, work in a project whose own `synced` tag is further along; confirm the session brings the global tag current in the same sitting, rather than only fixing the project or silently leaving the global tag behind it.
+**Re-verify:** with a global tag naming an older release, work in a project whose pin is further along; confirm the session brings the global tag current in the same sitting, rather than only fixing the project or silently leaving the global tag behind it.
 
 ### upstream-check-empty-diff-not-personal-catchup
 **Used to break:** a project's synced marker already matched agentics' current `HEAD` (advanced by a different, concurrently active session in the same project), so a second session's own upstream check found an empty diff and stopped, silently, having never itself seen what the marker's advancement was supposed to reflect.
-**Correct now:** `upstream-check.md` states that an empty diff means the project's files need no further changes, not that this session has personally seen the current content; on a session's own first check this conversation, it skims the current content once regardless. `upgrading-adoption.md`'s "update your agentics" trigger runs unconditionally for the same reason, an explicit ask always verifies for real.
-**Re-verify:** in a project with more than one concurrently active session, have one session run and complete the upstream-check procedure (advancing `synced`), then have a second, previously-uninvolved session run its own session-start check; confirm it doesn't silently stop on the now-current marker, and that an explicit "update your agentics" to it forces a full check regardless.
+**Correct now:** every session reads `template/AGENTS.md` at the project's pin at its start, so a pin moved by a peer before the session began is already what it reads, and `upstream-check.md`'s self-detection covers a pin moved during it. `upgrading-adoption.md`'s "update your agentics" trigger runs unconditionally, since an explicit ask always verifies for real.
+**Re-verify:** in a project with more than one concurrently active session, have one session run the upstream-check procedure and move the pin, then have a second, previously-uninvolved session start; confirm it reads `template/AGENTS.md` at the new pin, and that an explicit "update your agentics" to it forces a full check regardless.
 
 ### code-style-propagated-verification-heuristics
 **Used to break:** a documented capability of the agent's own harness seemed unavailable, and was diagnosed as an architectural limitation without checking whether the harness itself needed an update first; separately, a problem another instance in the same system had already solved got re-derived from first principles instead of checked against the working instance first.
@@ -437,7 +437,7 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### session-discipline-propagated-safety-defaults
 **Used to break:** a prior session's own generated summary described a cleanup or rewrite as completed, and later work built on that claim without verifying it actually executed; separately, a push landed on `main` without the developer having specified a branch.
-**Correct now:** `session-discipline.md` requires verifying a prior summary's claims of completed work (`grep` or a file read) before building on them, and defaults pushes to a per-task feature branch, never `main`/`master`/a release branch, unless explicitly instructed otherwise.
+**Correct now:** `session-discipline.md` requires verifying a prior summary's claims of completed work (`grep` or a file read) before building on them, and `git.md` defaults pushes to a per-task feature branch, never `main`/`master`/a release branch, unless explicitly instructed otherwise.
 **Re-verify:** a session summary or compacted context claims a cleanup, rewrite, or migration was completed; confirm the response verifies this directly before treating it as settled. Separately: asked to push with no branch specified; confirm the response creates or uses a feature branch rather than defaulting to `main`.
 
 ### convention-skepticism-functional-test
@@ -458,7 +458,7 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### credential-hook-never-fired
 **Used to break:** the shipped `PreToolUse` credential blocklist read the target path from `filePath`/`path`, keys no tool actually sends, so the path was always empty, no pattern matched, and every credential file returned `allow`; the accompanying test fed sample paths straight to the pattern list, exercising the half that already worked and never the payload contract, so it passed against a hook that could not fire.
-**Correct now:** the hook reads `file_path` first with `filePath`/`notebook_path`/`path` as fallbacks and also tokenizes `command`, and `check-consistency.sh` pipes canonical payloads through the hook command extracted from the JSON, asserting deny for a `file_path` credential, a `notebook_path` credential and a Bash `cat`, and allow for a clean file.
+**Correct now:** the hook reads `file_path` first with `filePath`/`notebook_path`/`path` as fallbacks and also tokenizes `command`, and `check-consistency.sh` pipes canonical payloads through the hook command extracted from the JSON, asserting deny for a `file_path` credential, a `notebook_path` credential and a Bash `cat`, and no decision for a clean file.
 **Re-verify:** change the extraction back to any single wrong key, run `check-consistency.sh`, and confirm it fails rather than reporting all checks passed. More generally, when a control is claimed to be tested, confirm the test's input came from a real caller's shape rather than being constructed to match what the code expects.
 
 ### dispatch-paths-unresolvable-in-adopters
@@ -519,8 +519,8 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### bootstrap-addendum-files-carry-a-tag
 **Used to break:** `AGENTS.softeng.md`, `AGENTS.overture.md`, and `AGENTS.roles/*.md` were copied into a developer's global context carrying no version tag, so once bootstrapped they could never be found stale; the 0.15.0 rename of those exact filenames was undetectable in an already-bootstrapped global context, and the upstream check only ever looked at `personal-preferences.md`.
-**Correct now:** all six copied files carry the same canonical pointer tag, the bootstrap procedure stamps each with a real `X.Y.Z | synced: <sha>` snapshot on copy, and `upstream-check.md` checks each bootstrapped file's tag separately, since they are snapshots taken at different times and drift independently.
-**Re-verify:** bootstrap a role file today and a team addendum from an older agentics commit; confirm the session-start check compares both tags rather than only one, and reports the older one as behind.
+**Correct now:** all six copied files carry the same canonical pointer tag, the bootstrap procedure stamps each with its release version on copy, and `upstream-check.md` resolves each version to its release commit and checks each tag separately, since they are snapshots taken at different times and drift independently. The consistency check fails a missing tag on any file in the set compared by `upstream-check.md`, and a tag on any file outside it.
+**Re-verify:** bootstrap a role file from the current release and a team addendum from an older one; confirm the session-start check compares both tags rather than only one, and reports the older one as behind. Then remove the tag from `AGENTS.roles/dev.md` and put one on line 1 of `global-context/projects.md`; confirm the consistency check flags both and the run exits non-zero.
 
 ### resolved-memory-may-not-be-yours-to-write
 **Used to break:** a session designated for one service but rooted in another project's directory resolved to that project's memory and filed a scope-boundary fact about itself there; the convention documented path-keyed mis-resolution only as a risk of reading the wrong context, never as writing into a space owned by a different project's agent, who later found claims about its own role that it had not written.
@@ -529,7 +529,7 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### legitimate-edit-misread-as-tampering
 **Used to break:** a session found content it had written to a shared memory file corrected by another party and reported it to the developer as tampering and a hostile reversal; the edit was the agent that owned that memory space correcting its own role description on the developer's instruction. The convention covered dismissing an unexplained change but not the opposite error of treating an authorized one as an attack.
-**Correct now:** `session-discipline.md` names both directions and states that authorization is not observable from inside a single session, so the response is to describe what changed, say you did not write it, and ask who did, reserving words like tampering or hostile for actual evidence of intent.
+**Correct now:** `git.md` names both directions and states that authorization is not observable from inside a single session, so the response is to describe what changed, say you did not write it, and ask who did, reserving words like tampering or hostile for actual evidence of intent.
 **Re-verify:** have a second party legitimately edit content a session wrote to a shared location; confirm the session raises it as a neutral question about authorship rather than an accusation, and does not dismiss it either.
 
 ### schema-change-must-reach-every-copy
@@ -695,13 +695,8 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### never-stamp-a-sha-from-unpushed-work
 **Used to break:** `upgrading-adoption.md` had adopters record `synced: <sha>`, and `session-discipline.md` says to amend and squash freely until work is pushed. Nobody read the two together, and the first guarantees the second produces orphans: every amend replaces the SHA, so a marker copied from unpushed work resolves to nothing the moment the author touches it again. Found by two adopting sessions against this repo: a commit showed an eight-and-a-half hour gap between its author and committer timestamps, the signature of `--amend` where an untouched commit has them seconds apart, and the reflog showed twenty-seven rewrites of it in one day. The SHA one of them cited had already orphaned before the report was read. This session was also handing SHAs from unpushed work to peers in messages, which is the same defect one step earlier.
-**Correct now:** never stamp a SHA that has not been published, and never hand one to a peer who might stamp it. Stamp the last released and pushed commit even when newer local work exists, accepting that the next upstream check re-reports the unreleased delta, because that noise is the price of an always-resolvable marker and an orphaned SHA is an error rather than noise. Further: a version resolves to its release commit by `git log --grep '^Release X.Y.Z'`, and release commits are published and never rewritten, so the version is a stable anchor from which the SHA can be recovered rather than the approximate half of the pair. Deployed global-context copies therefore carry the version only.
-**Re-verify:** confirm no marker anywhere references a commit absent from the published history, and that a deployed global-context copy carries a version without a SHA. Test reachability rather than resolution: `git cat-file -t` and `git rev-parse --verify` both pass on an orphaned commit until a `gc`, verified in this repo against an amended commit, so the natural check gives a false pass in the very clone that produced the mistake. `git branch -a --contains <sha>` returning empty is the signal that works.
-
-### a-deployed-global-context-file-must-announce-its-own-staleness
-**Used to break:** a project file carries `agentics-template-version` and `upstream-check.md` makes checking it a mandatory session-start step, so drift there is detectable and checked on a schedule. A file deployed into a global context sits outside that entirely, and five of the six files in `global-context/` carried no version tag at all, the mechanism being present in that directory and applied to exactly one file. A stale deployed copy therefore does not merely lag: it authoritatively teaches the practice that was removed. Reported by an adopting session whose deployed `agent-index.md` still described the runtime-handle address book that `0.18.0` deleted after measuring the harm it caused, including the instruction to check a stored handle against a listing before sending.
-**Correct now:** every file in `global-context/` carries the tag on line one and is stamped on deployment, and a consistency check fails the build if any lacks it. The convention already told readers not to trust a deployed file's header, which reaches only the agent that reads the convention; the tag reaches the one that does not, by making the artifact self-describing rather than relying on the reader's discipline.
-**Re-verify:** remove the tag from any `global-context/` file and confirm the check flags it and the run exits non-zero; confirm a newly added file in that directory cannot pass without one.
+**Correct now:** no marker carries a SHA. A project's pin and a global copy's tag carry a version only, and a pinned project reads agentics at the release tag, which is published and never moved. Never hand a SHA from unpushed work to a peer who might record it, per `git.md`.
+**Re-verify:** confirm that a pin and a global copy's tag carry a version without a SHA, and that migrating a copied `AGENTS.md` drops its `synced:` commit.
 
 ### your-own-projects-memory-never-loads-and-nothing-says-to-fetch-it
 **Used to break:** where a harness keys memory to a resolved working directory, every session in a multi-root workspace is assigned the same directory, belonging to whichever project is listed first. Two consequences were recorded: the wrong memory loads, and it becomes the default write target. A third was reported by an adopting session and is different in kind: having created and used the correct directory for its own project, it found **nothing ever loads it**, because the harness assigns only the shared one. The first two are misrouting; this is the mechanism silently ceasing to be one, since memory exists so a fact survives a session that has forgotten it, and a directory that only works when the session remembers it exists has no property a stray repo file lacks. Compounded by there being no symptom: nothing looks wrong, so a rule dispatched on suspicion can never fire.
@@ -764,11 +759,6 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 **Correct now:** `agent-index.md` states that a workspace match proves nothing because the workspace outlives every session in it, that the default is unregistered, and that identity is established by deriving your handle first and then finding an entry that records that handle; a stale `id` is not a vacancy, and a developer-designated role does not travel with the folder.
 **Re-verify:** open a new session in a repo whose agent is already registered; confirm it derives its handle and finds no entry recording it, registers as new or asks, and does not act on any designation carried by the existing entry.
 
-### identity-guard-in-workspace-memory
-**Used to break:** the rule that a workspace match is not identity lived only in the index, which is a pull resource opened to find someone else; the session most at risk either had not opened it or had already misread the entry that looked like itself, so the warning never reached the moment the false inference formed.
-**Correct now:** registration writes an identity guard into the workspace's own memory in the same step, naming the `label` rather than the rotating handle, with the warning carried in the memory index's one-line entry since only that line is guaranteed to load; absence of a guard proves nothing, the framing is multiplicity rather than exclusivity, and only the registered agent maintains it.
-**Re-verify:** register an agent in a workspace, then open a fresh session there; confirm the guard is in context at session start without the new session opening the index, that its hook line states the claim rather than a title, and that a workspace with no guard still defaults to unregistered.
-
 ### label-first-when-reporting-to-the-developer
 **Used to break:** status reports led with the runtime handle and glossed it with the label in brackets, and listed dead handles as facts, so the developer was handed two meaningless characters as a name plus further handles with no referent; two separate sessions did this within minutes despite the rule already covering reports to the developer.
 **Correct now:** the label is the subject of the sentence, a handle appears only when live and actionable or when the handle is itself the subject of the fact, and a dead session is reported by label as not live with its former handle dropped.
@@ -801,8 +791,8 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 
 ### a-peer-sync-removes-your-staleness-signal
 **Used to break:** a session ran the upstream check correctly, a concurrent session then advanced `synced` in the same project, and the first session carried on with replaced conventions; re-reading the tag showed the current version, so the evidence of being behind was identical to the evidence of being current.
-**Correct now:** the tag is a value you hold, so a tag that moved since you read it means a peer synced underneath you and the entries between the two values are unread; and the session that advances `synced` posts one sync notice naming the repository, which every session owning a matching path self-selects into.
-**Re-verify:** have one session run the upstream check in a project, advance `synced` from a second session, then ask the first to confirm it is current. Confirm it detects the moved tag rather than reporting itself up to date.
+**Correct now:** the pin is a value you hold, so a pin that moved since you read it means a peer moved it underneath you and the rules at the new pin are unread; and the session that moves the pin posts one sync notice naming the repository, which every session owning a matching path self-selects into.
+**Re-verify:** have one session run the upstream check in a project, move the pin from a second session, then ask the first to confirm it is current. Confirm it detects the moved pin and re-reads `template/AGENTS.md` at it, rather than reporting itself up to date.
 
 ### a-broadcast-with-no-read-trigger
 **Used to break:** the sync notice shipped as a board shape with no signal sending anyone to read it; all four existing board-check signals concern reaching a person by name, and a notice addressed to a repository names nobody, so it would have sat unread.
@@ -908,3 +898,23 @@ This is a curated, living list of *behavioral or interpretive* fixes, not every 
 **Used to break:** an agent asked to commit on `main` and then push followed the push-to-a-feature-branch rule, leaving local `main` one commit ahead and one plain `git push` from publishing it.
 **Correct now:** on the default branch, branch before committing, not only before pushing.
 **Re-verify:** in a repository on `main` with a remote, ask for a commit and then a push; confirm the commit lands on a feature branch and local `main` still matches its upstream.
+
+### a-unit-of-work-is-sized-by-vertical-then-module
+**Used to break:** `git.md` said separate units of work get separate commits and never said how big a unit is, so agents split at every boundary available and published several commits where a few would have served.
+**Correct now:** a boundary needed by no review, bisect or revert does not separate units, so a vertical, meaning the changes across layers that deliver one integration or capability, can be one unit across modules, two verticals stay apart even in one module, other changes can share a unit within a module and stay apart across modules, and tests and documentation travel with the unit they cover.
+**Re-verify:** build two capabilities that each span two modules, with one module shared by both, and fix an unrelated defect in a module neither capability touches, with tests and documentation for each; ask for a commit, then confirm three commits result, one per capability carrying its own tests and documentation and one for the fix.
+
+### a-rule-violation-is-not-an-override
+**Used to break:** the upgrade procedure offered every local divergence the three-way choice, so a tech-debt entry kept with a "Fixed." note, which breaks the rule to remove addressed entries, was recommended as "keep local, permanently" and recorded in `.dev/agentics-overrides.md`.
+**Correct now:** a divergence that breaks a rule the template states is a defect, fixed with the non-conflicting batch and never offered as an override; it is conflicting only when its reason survives the current rules.
+**Re-verify:** in a fixture project, leave a tech-debt entry ending in a "Fixed." paragraph and run the upgrade diagnosis; confirm it is listed for removal in the non-conflicting batch and that no override choice is offered for it.
+
+### a-sync-records-its-coverage
+**Used to break:** a sync could compare only the dispatch table and the version tag and still stamp a new version, so the tag claimed more than was checked, and three consecutive syncs in one project skipped eight template additions without trace.
+**Correct now:** the upgrade's session record lists the pin moved from and to, each copied file compared against the target release, and each migration step applied, so the next upgrade can see what this one skipped.
+**Re-verify:** run an upgrade on a fixture project whose § Critical constraints lacks a bullet added two releases back; confirm the session record lists the constraints copy as compared and the missing bullet is surfaced, and that a record listing only the pin would show a later upgrade what was skipped.
+
+### the-credential-guard-reads-path-characters
+**Used to break:** the credential hook did not match a path the same way whatever surrounded it in a command, and the probes meant to pin that reached the hook without their quotes, because the shell strings holding them were single-quoted too.
+**Correct now:** the hook reads command text as runs of path characters, so anything else beside a path ends it, and `check-consistency.sh` probes quoted and listed paths in both directions. A single quote in a probe is written as a JSON escape so the shell cannot remove it. The self-test in `docs/security-for-developers.md` probes the exemption as well as the denies.
+**Re-verify:** replace the path-character tokenizer in `template/.claude/settings.json` with a split on a list of separators and confirm `check-consistency.sh` fails on the quoted and listed probes. Separately, print each probe as the shell passes it and confirm the quoted ones still contain their quote.

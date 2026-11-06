@@ -6,7 +6,7 @@ A quick-reference index across every persistence layer agentics currently define
 
 "Needs coordination with whoever owns X", "owner TBD", "pending another team's commitment": each of these asserts that a fact is unavailable. That is a claim about the state of your records, not a neutral placeholder, and it is exactly the kind of claim `review-conduct.md` already says to verify before making, since an absence returns clean whether or not you looked. Before writing an uncertainty into anything persisted, check the one place that would hold the answer. For ownership and responsibility that is your cross-project map's `Owner:` field; for a convention it is the convention set; for a project's own decisions it is `.dev/`.
 
-Confirmed directly, and the shape of the failure is what makes it worth its own rule: the fact was already recorded globally, the agent had access to it, and it still wrote the wrong framing into a committed tech-debt entry. So the gap was never the fact being absent. It was that a global fact does not fire when a project-local file is being written, because nothing about writing that file makes anyone go and look. Recording the fact in more places does not fix that and makes it worse; see the section below on why a repeatedly-wrong answer wants one named field rather than copies.
+The shape of the failure is what makes it worth its own rule: the fact was already recorded globally, the agent had access to it, and it still wrote the wrong framing into a committed tech-debt entry. So the gap was never the fact being absent. It was that a global fact does not fire when a project-local file is being written, because nothing about writing that file makes anyone go and look. Recording the fact in more places does not fix that and makes it worse; see the section below on why a repeatedly-wrong answer wants one named field rather than copies.
 
 The cheap version of this rule, which is what actually makes it usable: an uncertainty you are about to persist is a question. Ask it before you write it down, rather than writing the question down as though it were an answer.
 
@@ -14,7 +14,7 @@ The cheap version of this rule, which is what actually makes it usable: an uncer
 
 Before running the questions below, check whether the thing you are about to write down is an answer to a question that has already been answered wrongly more than once. If it is, the fix is a named field in the one place where that question gets asked, not prose added wherever the mistake happened to surface.
 
-Confirmed directly, twice on the same component: a session described a service built by its own team as awaiting some other team's commitment, having inferred ownership from the repository's organization rather than finding it stated. Corrected once, it recurred the next day. The correcting session then wrote ownership into two separate places, a note covering the whole product family and a field on the single component where the error had appeared, leaving the other ten components of that family still unanswerable and two copies of one fact to drift apart.
+Twice on the same component, a session described a service built by its own team as awaiting some other team's commitment, having inferred ownership from the repository's organization rather than finding it stated. Corrected once, it recurred the next day. The correcting session then wrote ownership into two separate places, a note covering the whole product family and a field on the single component where the error had appeared, leaving the other ten components of that family still unanswerable and two copies of one fact to drift apart.
 
 The two failure modes are worth naming separately, because the second is the one that looks like diligence:
 
@@ -25,19 +25,19 @@ The general shape: when an agent keeps getting a question wrong, your records do
 
 ## The order of questions
 
-1. **Is this genuinely about the developer, true across every project they work in, or about a specific project's own nature?**
-   See `AGENTS.md` § Memory and contribution hygiene. Default to project-scoped. Promote to global memory only when it clearly applies everywhere, not by default when uncertain which one fits.
+1. **Is this genuinely about the user, true across every project they work in, or about a specific project's own nature?**
+   See agentics' `template/AGENTS.md` § Memory and contribution hygiene. Default to project-scoped. Promote to global memory only when it clearly applies everywhere, not by default when uncertain which one fits.
 
 2. **If project-specific: which project?**
-   See `definition-of-done.md` § "Where it goes: which project." The test is whose problem this is, not which project's context informed it. If the target project has no devctx, or this fact's required layer doesn't exist there yet (devctx present but no project memory, for instance), surface it to the developer rather than inventing the missing piece or writing it into a worse-fitting layer.
+   See `definition-of-done.md` § "Where it goes: which project." The test is whose problem this is, not which project's context informed it. If the target project has no devctx, or this fact's required layer doesn't exist there yet (devctx present but no project memory, for instance), surface it to the user rather than inventing the missing piece or writing it into a worse-fitting layer.
 
-   **Answering this correctly does not make the answer writable, and that constraint lives in another file.** Memory resolves from the session's launch directory, so a fact correctly assigned to project B is still written into project A's memory when the session is rooted in A: see `agent-troubleshooting.md` § Failure mode 2 for the resolution behaviour and the pre-write check. The escape hatch above is the right response and only fires if you know the constraint exists. Reported by a session that reached the right answer at this step and wrote into the wrong space anyway, and the cross-reference is the fix: **the decision point and the constraint that can void it were in different files, and only the constraint's file knew they were related.**
+   **Answering this correctly does not make the answer writable, and that constraint lives in another file.** Memory resolves from the session's launch directory, so a fact correctly assigned to project B is still written into project A's memory when the session is rooted in A: see `agent-troubleshooting.md` § Failure mode 2 for the resolution behaviour and the pre-write check. The escape hatch above is the right response and only fires if you know the constraint exists. A session that reached the right answer at this step still wrote into the wrong space, and the cross-reference is the fix: **the decision point and the constraint that can void it were in different files, and only the constraint's file knew they were related.**
 
 3. **Is this settled, or still being actively verified, a live investigation still in progress?**
    See `documentation.md` § The atlas. Not yet settled: stage it as a draft in project memory space (`<project-memory-dir>/drafts/*.md`), never indexed in `MEMORY.md`. Promote it, verified and appropriately genericized, once the investigation actually settles.
 
 4. **Once settled: is this a short fact, or does it need real substance?**
-   See `definition-of-done.md` § "Where it goes: pointer vs. substance." A preference or one-line project detail stays a short pointer in project memory. Anything that needs more than a few sentences (an algorithm, a pattern write-up, a terminology mapping) needs an actual document, not a longer memory entry.
+   See `definition-of-done.md` § "Where it goes: pointer vs. substance." A preference, or a short project fact that cannot be committed, is personal or spans projects, stays a short pointer in project memory. A committable project fact goes to `.dev/` by step 5, however short, per `session-discipline.md` § Starting a session. Anything that needs more than a few sentences (an algorithm, a pattern write-up, a terminology mapping) needs an actual document, not a longer memory entry.
 
 5. **If it needs substance, what kind?**
    - An open work item, feature, or design question: `.dev/roadmap.md`. Terse status only, with depth relocated to `.dev/docs/atlas/roadmap/<topic>.md`, if this project has `roadmap_split: yes` recorded (see `session-discipline.md` § Keeping `.dev/` current); otherwise the roadmap entry itself carries the depth, as normal.

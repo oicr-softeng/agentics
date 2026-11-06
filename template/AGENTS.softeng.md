@@ -1,11 +1,11 @@
 <!-- agentics-template-version: see CHANGELOG.md § Released (latest entry) -->
 # softeng team conventions
 
-This file is an addendum to `AGENTS.md`/`CLAUDE.md`, applied when project memory confirms the developer is part of the softeng team. Do not include credentials, private cluster endpoints, or secrets here: ever.
+This file is an addendum to `AGENTS.md`/`CLAUDE.md`, applied when project memory confirms the user is part of the softeng team. Do not include credentials, private cluster endpoints, or secrets here: ever.
 
 ## How this file is used
 
-The initialization block in `AGENTS.md` records team membership in project memory on the first session. Subsequent sessions read the flag and load this file at session start.
+Initialization, `conventions/initialization.md`, records team membership in project memory on the first session. Subsequent sessions read the flag and load this file at session start.
 
 ---
 

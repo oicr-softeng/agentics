@@ -4,4 +4,4 @@
 
 This is the agentics repo itself. Its purpose is to maintain and distribute the devctx collaboration template to softeng team members and developers broadly.
 
-This file exists because Claude Code loads it automatically; it isn't the canonical source. Read `AGENTS.md` now: it holds interaction parameters, critical constraints, the dispatch table, memory hygiene, repo maintenance rules, initialization, and the version tag, all of it, so none of it is duplicated here to drift out of sync.
+This file exists because Claude Code loads it automatically; it isn't the canonical source. Read `AGENTS.md` now: it holds interaction parameters, critical constraints, the dispatch table, memory hygiene, repo maintenance rules and initialization, all of it, so none of it is duplicated here to drift out of sync.

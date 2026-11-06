@@ -6,9 +6,11 @@ Default: write no comments. Add one only when the WHY is non-obvious: a hidden c
 
 **Iterative work compounds this, and each comment earned its place at the time.** A note explaining a fix just made, or what a reviewer just confirmed, reads as a legitimate "why" in the moment. Across several rounds of fixes and review the accumulation is a changelog embedded in the source rather than documentation of the code as it stands, and none of it will still be true or relevant a week later.
 
-**Fix it with a dedicated pass once work on the file settles, not incrementally.** Re-read every comment and ask this section's question again, per comment. That pass cut the reported file by 17%, comments only, no logic touched. It has to be separate because no per-comment judgement made during the work can see the total.
+**Fix it with a dedicated pass once work on the file settles, not incrementally.** Re-read every comment and ask this section's question again, per comment. That pass cut one file by 17%, comments only, no logic touched. It has to be separate because no per-comment judgement made during the work can see the total.
 
 Never explain WHAT the code does; well-named identifiers already do that. Never reference the current task, fix, or callers: those belong in the PR description and rot as the codebase evolves.
+
+**Until a security fix is released, the WHY in its comments states what the code must do, never the hole it closes**: "every archive is measured against the size limit before it is extracted", not "nested archives skipped the size check". This overrides the "Y, because X breaks when Z" form in `writing-style.md` § Say what changed, not how you got there, since its because-clause would describe the hole. See `security.md` § Releasing the fix for a hole carried by a published release.
 
 ## Naming conventions
 
@@ -16,17 +18,35 @@ Never explain WHAT the code does; well-named identifiers already do that. Never 
 
 **Full-word, descriptive identifiers, never a single letter or an unexplained abbreviation.** Applies broadly: any variable, parameter, or import alias, including a package's own conventional short alias (`fc` for `fast-check`, `z` for `zod`), not just the obviously terse ones. A package-level convention being common doesn't make an abbreviation self-explanatory to someone who doesn't already know that package.
 
-**Exception: idioms embedded in the language or framework itself, not a single package's own convention.** A loop counter (`i`, `j` in a simple bounded loop) or Express middleware's own signature (`req`, `res`, `next`) are established vocabulary shared across virtually every codebase in that language or framework, not an abbreviation chosen for brevity. That's a narrower exception than a package's own short alias: reach for it only when the idiom is genuinely universal to the language or framework, not merely common within one library's own docs or examples.
+**Exception: idioms embedded in the language or framework itself, not a single package's own convention.** A loop counter (`i`, `j` in a simple bounded loop) or Express middleware's own signature (`req`, `res`, `next`) are established vocabulary shared across virtually every codebase in that language or framework, not an abbreviation chosen for brevity.
 
-**A name declares what the identifier holds; the type supports that name rather than supplying it.** If a reader has to check the annotation to know what a name refers to, the name has failed. The worked case, learned the hard way across Overture, is a key-and-value pair on a record, which is three things and needs three names: `field` is the whole unit and is never a string, `fieldName` is the key and is never an object, and `value` is what the record holds at that key. A filter names a field by its field name and tests its value, which is why configuration stores names: a name is what identifies the same field across every record.
+**A name declares what the identifier holds; the type supports that name rather than supplying it.** If a reader has to check the annotation to know what a name refers to, the name has failed. The worked case, seen across Overture, is a key-and-value pair on a record, which is three things and needs three names: `field` is the whole unit and is never a string, `fieldName` is the key and is never an object, and `value` is what the record holds at that key. A filter names a field by its field name and tests its value, which is why configuration stores names: a name is what identifies the same field across every record.
 
 **It earns a rule rather than a preference because the failure is silent and survives review.** `field: string` and `field: FieldObject` both compile and both read fine in isolation, so the mistake surfaces only where the two meet, which is usually an integration boundary with one side passing a name and the other expecting a pair. It generalizes past fields to any container and identifier sharing a stem, such as a catalogue and a catalogue id, or a resource and a resource name. **The reviewer's tell is a name whose meaning changes depending on the type beside it.**
 
-**In prose there is no type beside it, and the same defect appears with the diagnostic removed.** A table column headed "Resource field" over cells reading `study_id` and `organization` is the code defect in a document, and the tell above cannot reach it. **What the sentence is doing with the thing decides instead.** Configuring, matching, identifying, passing or storing means the **name**, because a name is what identifies the same one across every record. Cardinality, depth, values, or which thing in the data plays a role means the **thing itself**, because those are properties of it rather than of its name. That test needs no annotation, so it works in a table, a heading, or a sentence. Reported from a design document being edited to correct terminology, where the author had stated the distinction correctly minutes earlier and applied it to five other uses in the same file.
+**In prose there is no type beside it, and the same defect appears with the diagnostic removed.** A table column headed "Resource field" over cells reading `study_id` and `organization` is the code defect in a document, and the tell above cannot reach it. **What the sentence is doing with the thing decides instead.** Configuring, matching, identifying, passing or storing means the **name**, because a name is what identifies the same one across every record. Cardinality, depth, values, or which thing in the data plays a role means the **thing itself**, because those are properties of it rather than of its name. That test needs no annotation, so it works in a table, a heading, or a sentence.
+
+**A name says what the thing does, so a reader never has to cancel one negation against another.** `excludesNothing` pairs a verb of removal or refusal, such as `exclude`, `skip` or `disable`, with a negative quantifier such as `nothing` or `none`, and `includesEverything` says the same thing directly. `filterNothing` adds a second defect, since `filter` can mean keep or remove, so the name reads as removing nothing or as keeping nothing. `noFilter` names an absence, so the branch that filters reads `if (!noFilter)`, the negated condition ruled out by § Conditional logic and functional style. **Three questions from a newcomer to the code raise candidates: "from what?", "why is it even necessary?" and "what would the opposite be?"** A candidate fails when the reader has to cancel two negations or guess which way the verb points.
+
+**One negation that states the behaviour passes.** `matchNothing` says what it does, and so does the test name `excludes empty string entries`, whose negative verb has a concrete object. Default to the positive form, and choose the negative only where it is the more accurate description: whether a flag reads better as `enableFeature` or `disableFeature` depends on what the code does by default, while `disableNothing` is never clearer than saying what stays on. This covers identifiers and test names; prose stays with `writing-style.md`. Apply to new names, and rename an existing one under § Scope discipline.
+
+**A new name, whether an identifier, a file or a term, is chosen by the five steps in `writing-style-detail.md` § Vocabulary drifts in two directions and conventions only watch one.**
+
+## Module format: `.js` and `.ts` in source
+
+**Source files are `.js` and `.ts` only; build output varies as appropriate.** JavaScript and TypeScript packages are ESM-first: declare `"type": "module"`, so `.js` and `.ts` are ESM, and write no `.mjs`, `.cjs`, `.mts` or `.cts` file, by hand or by an agent, declarations included (`.d.ts`, never `.d.mts` or `.d.cts`). One default extension keeps source consistent. What a build produces and a release pipeline publishes may use whatever its consumers need, such as `.cjs` and `.d.cts` for a dual build's `require` output, or `.mjs` and `.d.mts` where a tool emits them. A dual build ships one declaration file per format, and each format's conditions in `exports` list `types` first, since conditions match in order.
+
+**The one exception is a config file for a tool that can only load CommonJS.** Under `"type": "module"` a `.js` config is ESM, so such a tool needs `.cjs`. Check first whether the tool accepts an ESM config, since most current tools do, and open the file with a comment saying the tool cannot load ESM, so the exception is dropped once it can.
+
+**Under `"type": "module"`, an explicit extension in source says nothing `.js` does not, and CommonJS belongs to the build.** Node reads a `.js` file's format from the nearest `package.json` above it, so a package's own `type` governs its files, including inside a CommonJS consumer's `node_modules`.
+
+**A package without `"type": "module"` gets it added, and the switch is a migration, not a one-line change.** Declaring it makes Node read every existing `.js` file in the package as ESM, so each CommonJS source file is converted to ESM in the same change. In a published package, an entry point that changes name or format is a breaking change and ships its migration path, per `documentation.md` § A breaking change ships its migration path. Where the switch is out of scope, log it as tech-debt. The check is mechanical: `git ls-files '*.mjs' '*.cjs' '*.mts' '*.cts'` returns nothing besides any build output a package commits and config files for CommonJS-only tools.
 
 ## Platform portability
 
 When a fix depends on something that differs by platform, a socket path, a line ending, a case-sensitive filesystem, an installed binary's default location, default to detecting the runtime or making it configurable, not hardcoding the value observed on whichever machine wrote the fix. This applies most sharply to modifying the machine itself rather than the code: a symlink or local file created so one specific machine's environment matches what the code expects is not a fix, it's a machine-specific accommodation that breaks the moment anyone else runs the same code on a different setup. Change the code to accept what the platform actually provides instead.
+
+**The same holds for commands run by an agent, where the failure is usually silent.** macOS ships BSD `sed`, where `\b` word boundaries and `\(...\|...\)` alternation are GNU extensions that match nothing and report no error, so use explicit delimiters or several `-e` expressions. Where the shell is zsh, macOS's default, `$VAR:t` is a path modifier rather than a variable followed by a colon, and an unquoted variable holding several paths is not word-split. Neither holds on every machine, so check which tools and shell are present before relying on either set of behaviour.
 
 ## Configuration and environment isolation
 
@@ -69,13 +89,13 @@ Before adding new functionality that needs configuration, especially inside a li
 
 This is a specific case of "Searching before writing" (below) worth calling out on its own: a genuinely new feature doesn't feel like duplicating anything, so the general habit of searching for existing implementations doesn't naturally fire. The search that matters here isn't "does this feature's config already exist" (it doesn't), it's "how does this project already ingest configuration, in general" (it does, somewhere), a different question, easy to skip past when the surrounding work is a real feature addition rather than a rewrite.
 
-Concretely: adding new functionality to a library should mean extending the host application's existing config-assembly step, wherever it already builds the object passed into the library, with the new fields, not adding a second `process.env` read inside the library's new code. The library still never reads `process.env` directly, per "Configuration and environment isolation" above; the point here is the earlier step of finding where that reading already happens before assuming a new one is needed.
+Concretely: adding new functionality to a library should mean extending the host application's existing config-assembly step, wherever it already builds the object passed into the library, with the new fields, not adding a second `process.env` read inside the library's new code.
 
 ## Conditional logic and functional style
 
 **Positive conditions.** Write `if X` rather than `if !X`. Put the happy path in the positive branch; let the error case fall through or come after. A reader should not have to negate a condition mentally to understand what the main flow does.
 
-**Non-mutational.** Default to `const`; treat every `let` as a question to answer, not a neutral second option. If a binding needs to be reassigned, find out why before accepting it: either it fits one of the two patterns below and should be rewritten as an expression, or it's a real, narrow exception, like the async cancellation signal further down, not a default reached for out of habit. Prefer expressions that produce new values over statements that mutate existing containers. Use ternaries and object spread instead of initialising an object and conditionally filling it:
+**Non-mutational.** Default to `const`; treat every `let` as a question to answer, not a neutral second option. If a binding needs to be reassigned, find out why before accepting it: either it fits one of the two patterns below and should be rewritten as an expression, or it's a real, narrow exception, like the async cancellation signal further down, not a default reached for out of habit. Prefer expressions that produce new values over statements that mutate existing containers. Use ternaries and object spread instead of initializing an object and conditionally filling it:
 
 ```ts
 // avoid
@@ -122,11 +142,9 @@ if (!user) {
 }
 ```
 
-Apply these five together: a function composed of pure helpers, positive conditions, non-mutational expressions, data-derived rather than duplicated flags, and consistently braced control flow reads as a series of declarative steps rather than a sequence of instructions.
-
 ## No non-null assertions
 
-Never use TypeScript's non-null assertion operator (`variable!`), even in a project whose `tsconfig.json` doesn't enable `strict` or `strictNullChecks`. The operator silences the type checker without proving the value is actually non-null: it just moves discovery of a wrong assumption from compile time to an unguarded runtime crash, with no evidence beforehand that the assumption was ever unsafe. This holds independently of the project's strictness settings: removing the assertion doesn't just appease a compiler flag that may not even be on, it forces the real runtime possibility (the value being absent) to be handled somewhere.
+Never use TypeScript's non-null assertion operator (`variable!`), even in a project whose `tsconfig.json` doesn't enable `strict` or `strictNullChecks`. The operator silences the type checker without proving the value is actually non-null: it just moves discovery of a wrong assumption from compile time to an unguarded runtime crash, with no evidence beforehand that the assumption was ever unsafe.
 
 Prefer, in order:
 - Optional chaining and nullish coalescing: `value?.prop ?? fallback`
@@ -150,9 +168,9 @@ Apply to new code from the start. When touching existing `!` usages in scope, re
 
 ## A type assertion points at a typing gap upstream
 
-**Treat an assertion as a symptom to trace, not a wart to remove locally.** The developer's instruction was to avoid them, and the sentence that matters is the one that followed: *"would it help if we fixed buildQuery?"* He did not ask for the assertion to be deleted, he asked whether the thing forcing it could be fixed. That reframing is the whole rule, because deleting an assertion locally either loses type safety or moves the same lie somewhere else, while fixing what forced it removes every instance at once.
+**Treat an assertion as a symptom to trace, not a wart to remove locally.** Deleting an assertion locally either loses type safety or moves the same lie somewhere else, while fixing what forced it removes every instance at once.
 
- A type annotated with a bare generic, itself a type error, was forcing seventeen assertions at call sites; supplying the argument removed all of them. An untyped JavaScript module whose `= []` default inferred as `never[]` forced the rest, and a JSDoc `@param` block fixed it with no rewrite and no conversion to TypeScript. **Twenty-two assertions gone, and the package's type-error count fell by two.**
+A type annotated with a bare generic, itself a type error, was forcing seventeen assertions at call sites; supplying the argument removed all of them. An untyped JavaScript module whose `= []` default inferred as `never[]` forced the rest, and a JSDoc `@param` block fixed it with no rewrite and no conversion to TypeScript. **Twenty-two assertions gone, and the package's type-error count fell by two.**
 
 **The finding worth more than the count: typing the parameter honestly then exposed a call site passing a possibly-undefined value.** Not a runtime bug, since a guard above it throws, but the invariant lived in a function opaque to the type system and nothing recorded it. The assertions had been hiding that, which is what an assertion does in general: it silences the question rather than answering it.
 
@@ -176,7 +194,7 @@ Apply when writing new exports. When touching existing exports that lack TSDoc, 
 
 **A `/** */` block only ever attaches to a declaration.** On a statement inside a function body it documents nothing, and `//` is the correct form. This is the part of the rule that is unambiguously wrong rather than a placement preference, and the reason is not cosmetic: doc syntax on a non-declaration reads as API documentation to anyone skimming, while being invisible to every tool that would treat it as such. Where a project lints, this belongs in the lint configuration rather than in a bespoke check.
 
-Reported from the developer's instruction, by a session that separated the three cases before proposing anything, because a rule stated only as "no inline doc comments" over-applies in two directions at once. Their `@property` claim was checked against a real corpus rather than asserted: `@param` 145, `@returns` 65, `@example` 23, `@see` 6, `@remarks` 6, `@throws` 5, `@property` 0.
+The three cases are separated because a rule stated only as "no inline doc comments" over-applies in two directions at once.
 
 ## Scope discipline
 
@@ -188,7 +206,7 @@ Don't add features, refactor, or introduce abstractions beyond what the task req
 
 ## Library awareness
 
-When a well-established library would do more thorough work than a hand-rolled solution, surface it as an option with a brief explanation. Let the developer decide: they may learn something useful from it regardless of whether they adopt it.
+When a well-established library would do more thorough work than a hand-rolled solution, surface it as an option with a brief explanation. Let the user decide: they may learn something useful from it regardless of whether they adopt it. **The same holds for the framework already in use.** When a requested change would rebuild something the framework provides, such as a per-request store, or would depart from how the framework is designed to be used, offer the framework's own approach as the option. This is not attachment to idiom for its own sake: the request may have a reason to deviate, and the user decides.
 
 ## Dependency version verification
 
@@ -200,7 +218,7 @@ Also check for version conflicts before writing: run `npm why <package>` (or equ
 
 **Evaluating whether a package already has a capability is the sibling case to introducing one.** `latest` is one dist-tag among several; a maintainer can ship current work under a pre-release tag (`next`, `rc`, `beta`) without promoting it. Concluding a package lacks a feature because it's absent from `latest` is the same stale-assumption pattern above, applied to capability instead of version. Run `npm view <package> dist-tags` (or equivalent) before concluding a capability doesn't exist yet, especially when evaluating a migration or a dependency swap.
 
-**A wrapper's current type signature is not proof the underlying dependency lacks a capability either.** A first-party abstraction (a fetch wrapper, a client class) can simply not yet expose a parameter its underlying library already supports; concluding "no cancellation support" from the wrapper's own signature, without checking what the dependency it actually calls into accepts, is the same stale-assumption pattern as the dist-tag case above, one layer removed. Confirmed directly: a boolean cancellation flag was proposed as necessary because a fetcher wrapper's type signature had no `AbortSignal` parameter; the HTTP client it called into underneath (axios, already a dependency) supported `signal` natively the whole time, and widening the wrapper to pass it through removed the hand-rolled flag entirely in favour of real cancellation. Check the dependency actually being called, not just the current shape of whatever wraps it, before concluding a capability doesn't exist.
+**A wrapper's current type signature is not proof the underlying dependency lacks a capability either.** A first-party abstraction (a fetch wrapper, a client class) can simply not yet expose a parameter its underlying library already supports; concluding "no cancellation support" from the wrapper's own signature, without checking what the dependency it actually calls into accepts, is the same stale-assumption pattern as the dist-tag case above, one layer removed. A boolean cancellation flag was proposed because a fetcher wrapper's signature had no `AbortSignal` parameter, while the axios client underneath supported `signal` natively.
 
 ## Verifying dated or versioned external facts
 
@@ -208,19 +226,15 @@ Training data has a cutoff, and a fact that carried an explicit version or date 
 
 When both hold and the fact is about to be actively cited or applied, not just background context, verify it against the authoritative current source first, rather than defaulting to whatever edition or version training data implies. A standing "always verify the current edition" reminder isn't enough on its own to make this fire: it's a passive dispatch citation's failure mode (see `convention-levels.md` § "The reference has to be an instruction, not a citation"). Tie the check to the specific moment a versioned fact is about to be used, not to remembering a general reminder.
 
-**A fetch that answers a question about a page returns a reading of the page, not the page.** Where the tool converts a document and answers a prompt against it with a smaller model, what comes back is second-hand, and the verification looks identical to one that read the source. **So a quote obtained that way is not a quote.** Two sessions hit this in one exchange: one cited a documentation line warning others not to build on it, the other fetched the same page to check and reported the result as what the page said, and the line is most likely the summarizer's gloss in both cases rather than text either of them saw. The tell is mechanical: **you are about to put quotation marks around something you did not read verbatim.** Either retrieve the raw text, or say which layer the words came through, on the same terms as any other claim that was not verified where it is being stated.
-
-"Dependency version verification" above is one instance of this (npm package versions, checked against the registry); it's the same underlying rule, scoped to one kind of source.
+**A fetch that answers a question about a page returns a reading of the page, not the page.** Where the tool converts a document and answers a prompt against it with a smaller model, what comes back is second-hand, and the verification looks identical to one that read the source. **So a quote obtained that way is not a quote.** The tell is mechanical: **you are about to put quotation marks around something you did not read verbatim.** Either retrieve the raw text, or say which layer the words came through, on the same terms as any other claim that was not verified where it is being stated.
 
 **Concrete trigger:** naming or applying a specific OWASP Top 10 edition or year is exactly this case, see `security.md` and `security-guidelines.md`.
 
-**Applies to your own tooling, not just external dependencies.** A documented feature or capability of your own harness that seems unavailable in the current environment is the same kind of versioned fact: check whether the harness itself needs an update, or whether the capability is gated behind a version, before concluding it's an architectural limitation. Confirmed directly: cross-session messaging was diagnosed as unavailable in a given environment, reasoning from a plausible but unverified theory about the hosting architecture, when a pending client update was the simpler, correct explanation and hadn't been checked first.
+**Applies to your own tooling, not just external dependencies.** A documented feature or capability of your own harness that seems unavailable in the current environment is the same kind of versioned fact: check whether the harness itself needs an update, or whether the capability is gated behind a version, before concluding it's an architectural limitation. Cross-session messaging was diagnosed as unavailable in a given environment, reasoning from a plausible but unverified theory about the hosting architecture, when a pending client update was the simpler, correct explanation and hadn't been checked first.
 
 ## Searching before writing
 
 Before implementing something new, search the codebase for existing patterns first. Use `grep` or semantic search to find similar implementations: this keeps the codebase consistent and surfaces reusable utilities before they get duplicated.
-
-For the specific case of adding new configuration-dependent functionality, see "Matching existing configuration entry points" above: the same habit, applied to finding an existing config-resolution mechanism rather than an existing utility function.
 
 **The same habit applies to debugging, not just writing new code.** When stuck on a problem that a system's other, similar parts may have already solved, a working sibling instance (another service in the same cluster, another module handling the same class of input, another environment with the same constraint) is ground truth, faster and more reliable than re-deriving the answer from first principles. Look for one before diagnosing in isolation.
 
@@ -238,24 +252,33 @@ Set up structured logging before writing application logic, the same way you set
 
 **Baseline justification: OWASP A09 (Security Logging and Alerting Failures)**, see `security-guidelines.md` § A09. The value extends past security, though: structured logs are machine-queryable and are the foundation for any audit trail, not just a security control.
 
+## What a user-facing error says
+
+**An error tells its reader what they can act on, and "contact an administrator" gives them nothing they had not already thought of.**
+
+- **When the request caused it, name the rule it broke**: "`items` must be a list holding exactly one entry", "dates use the ISO 8601 form". Name the field or shape at fault and never echo the submitted value, so the message is safe to show anyone.
+- **When it did not, name the kind of problem plainly**: "you have no access to this project", "a problem in the server's configuration, not in this request".
+- **Detail goes to the log, not the response**: the failing value, the stack and the operator's fix are logged under an event name, per § Structured logging.
+- **A denial names the resource, never what it holds**: no access to the project, not which records exist or how many were withheld, nor, where withdrawn access is itself sensitive, whether access was never held or was withdrawn, which is the inference guarded against by `security-guidelines.md` § A07: Authentication Failures.
+
+**Hardening error output overshoots in one predictable way.** Replacing every message with one fixed string, to keep submitted values out of the response, also hides the rule that was broken, which was never the risk. Keep each rule's own fixed, value-free message and remove only the echoed value.
+
 ## Property ordering
 
 Alphabetize properties within objects and mappings in config files (YAML, JSON, etc.) at all nesting levels: scalars and block properties interleaved together, not split by type. This prevents silent duplicate key overwrites and makes additions easier to place consistently.
 
-**This applies to code, not only config files.** Alphabetize the properties of an object literal, the fields of a `type`/`interface`, and the names in a destructured parameter (`{ a, b, c }: Params`), the same way and at every nesting level. A plain positional argument list is unaffected: its order comes from the function signature, not from sorting. This rule is about named fields, not every list.
+**This applies to code, not only config files.** Alphabetize the properties of an object literal, the fields of a `type`/`interface`, and the names in a destructured parameter (`{ a, b, c }: Params`), the same way and at every nesting level. A plain positional argument list is unaffected: its order comes from the function signature, not from sorting.
 
-**Exception: key order that's semantically meaningful.** Doesn't apply where the order itself is part of the meaning: a reducer's accumulator, an enum-like object whose entries represent an intentional sequence (pipeline steps, ordered states). Alphabetizing there would destroy something deliberate, not leave an arbitrary order unsorted. This is about named fields with no inherent order of their own, not every object.
+**Exception: key order that's semantically meaningful.** Doesn't apply where the order itself is part of the meaning: a reducer's accumulator, an enum-like object whose entries represent an intentional sequence (pipeline steps, ordered states). Alphabetizing there would destroy something deliberate, not leave an arbitrary order unsorted.
 
-**And to markdown reference documents with named per-item sections**, not just code or config: a project map's `### project-name` headings, a glossary's terms, anything enumerating discrete named entries. Same reasoning as config keys: scanning for whether an entry already exists, and knowing where a new one belongs, both get harder without it. A prose document that isn't enumerating named items (a narrative walkthrough, an ordered set of steps) isn't affected: this is about named-entry lists, not every heading in existence.
+**And to markdown reference documents with named per-item sections**, not just code or config: a project map's `### project-name` headings, a glossary's terms, anything enumerating discrete named entries. Same reasoning as config keys: scanning for whether an entry already exists, and knowing where a new one belongs, both get harder without it. A prose document that isn't enumerating named items (a narrative walkthrough, an ordered set of steps) isn't affected.
 
 Apply when writing new content, config or code. When editing existing files, fix ordering within the sections being touched. When inserting a new key, resource block, or field into an existing structure, place it at its alphabetical position: not at the current edit point, not at the end.
 
 **Watch for drift across a multi-step task.** Alphabetization is easy to get right in isolation and easy to lose when a field gets bolted onto an existing object mid-task (new key appended at the end instead of inserted in place) or when the same shape gets copy-pasted across several call sites (one gets fixed, the copies don't). Before treating a multi-file change as done, sweep back over every object literal, type, and destructured parameter it touched, not just the one you were looking at when you added the field.
 
-**The mechanism, confirmed first-hand by the session it happened to rather than inferred: you copy an adjacent line for its form and inherit its position.** You are looking at what the line *is*, and position is not a property of a line: it is a property of where it sits relative to its neighbours, which you are not looking at. So the incidental rides in unexamined, and the copy even supplies its own justification, since "matching the existing pattern" is true of the form and false of the placement. Reported by a session that said exactly that to its developer while offering the wrong thing as the reason.
+**The mechanism, established first-hand rather than inferred: you copy an adjacent line for its form and inherit its position.** You are looking at what the line *is*, and position is not a property of a line: it is a property of where it sits relative to its neighbours, which you are not looking at. So the incidental rides in unexamined, and the copy even supplies its own justification, since "matching the existing pattern" is true of the form and false of the placement.
 
-**That also explains the conditional-spread correlation better than syntax noise does.** A conditional spread is fiddly enough that you copy a neighbouring one rather than writing it out, so the syntax difficulty causes the copying and the copying causes the position inheritance. The risk is not that the shape is hard to eyeball; it is that you never wrote it in the first place.
-
-**Conditional spreads are a higher-risk spot for exactly this drift.** A shape built with `...(condition ? { key } : {})` mixed with plain keys is harder to eyeball for correct position than a flat literal, since checking order means mentally stripping the spread syntax first. This matters most for output an external reader or system actually scans (an API response body, a persisted structure), not just a maintainer's own read: nothing catches a misplaced key there beyond someone noticing the output looks wrong.
+**Conditional spreads are the highest-risk spot for this drift.** The cause is copying rather than eyeballing: `...(condition ? { key } : {})` is fiddly enough that you copy a neighbouring one and inherit its position, which is also why a misplaced one is hard to spot, since checking order means mentally stripping the spread syntax. This matters most for output scanned by an external reader or system (an API response body, a persisted structure), where only someone noticing the output looks wrong catches a misplaced key.
 
 **Optional automated enforcement:** [`eslint-plugin-perfectionist`](https://npmjs.com/package/eslint-plugin-perfectionist) has autofixable rules for exactly this (`sort-objects`, `sort-interfaces`, `sort-object-types`, among others) and can catch what manual review misses. Surfacing it here as an option per `code-style.md` § Library awareness, not a requirement: check its current version against the registry before adopting, and confirm which of its rules cover destructured parameters versus plain object literals before relying on it as the sole enforcement mechanism.

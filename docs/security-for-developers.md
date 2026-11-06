@@ -1,14 +1,14 @@
 # Security: what you need to do yourself
 
-**Written for the developer, not for your agent to act on.** This is your half of agentics' security posture: the things beyond any convention file's reach, because they depend on a person actually looking. `agent-security.md` covers the threat model and the checks an agent runs; this covers what you check, what you should not take on trust, and what to do when something has already gone wrong.
+**Written for the developer, not for your agent to act on.** This is your half of agentics' security posture: the things beyond any convention file's reach, because they depend on a person actually looking. `agent-security.md` covers the threat model and the checks run by an agent. `template/conventions/security.md` and `template/conventions/security-guidelines.md` are the agent-facing security conventions. This file covers what you check, what you should not take on trust, and what to do when something has already gone wrong.
 
 Read it once when you adopt agentics, and again if you ever find yourself relying on a control rather than verifying it.
 
 ## The premise: a security control that reports success is not evidence it works
 
-Agentics shipped a credential blocklist for months that never blocked anything. It read the wrong key out of the tool payload, so the path it checked was always empty, no pattern could match, and it returned "allow" for every credential file on disk. Nobody noticed, for three reasons worth internalizing because they generalize well past this one bug:
+Agentics ships a credential blocklist for Claude Code. It is a `PreToolUse` hook, a command run before every tool call, and it refuses any call that names a credential file such as a private key. For months it never blocked anything. It read the wrong key out of the tool payload, so the path it checked was always empty, no pattern could match, and it returned "allow" for every credential file on disk. Nobody noticed, for three reasons worth internalizing because they generalize well past this one bug:
 
-- **A permissive failure is silent.** A hook that wrongly denies gets reported immediately, because work stops. A hook that wrongly allows produces no error, no log line, and no observable difference from having no hook at all. You cannot notice this passively; you have to go and check.
+- **A permissive failure is silent.** A hook that wrongly denies gets reported immediately, because work stops. A hook that wrongly allows produces no error, no log line, and nothing to distinguish it from correct operation. You cannot notice this passively; you have to go and check.
 - **The documentation asserted it was working**, which turned the absence of evidence into positive reassurance.
 - **It had been tested, and the test passed.** The test fed sample paths to the pattern list and confirmed the patterns were correct. They were correct. The test exercised the half that already worked and never touched the part that was broken.
 
@@ -30,20 +30,21 @@ check "env"    '{"tool_input":{"file_path":"/tmp/project/.env"}}'      # expect:
 check "ssh"    '{"tool_input":{"file_path":"/tmp/home/.ssh/id_rsa"}}'  # expect: deny
 check "bash"   '{"tool_input":{"command":"cat /tmp/project/.env"}}'    # expect: deny
 check "clean"  '{"tool_input":{"file_path":"/tmp/project/README.md"}}' # expect: none
+check "exempt" '{"tool_input":{"command":"x = [\u0027/tmp/project/.env.schema\u0027, 1]"}}' # expect: none
 ```
 
-Three denies and one `none` means it is live. **An `allow` anywhere is a defect, not a pass**: a PreToolUse hook returning `allow` skips the permission prompt for that call, so a guard that allows every path it does not block switches off the default prompts for every tool it does not cover, while looking like it is working. The denies are what prove the hook is live; a clean path should produce no output at all, which leaves the normal permission flow in charge. Note the paths above do not need to exist: the hook decides before the file is ever opened, which is what makes this safe to run anywhere. **An agent cannot run it inline in a session already protected by the hook**: the probe paths appear in the command text, and the hook scans command text, so it denies the self-test before it runs. Save it to a script file and run the file, or run it from your own terminal. A denial here is the hook working, not the test failing.
+Three denies and two `none` mean it is live and that its exemption for the `.env.schema` and `.env.example` templates holds when a command quotes the path. **An `allow` anywhere is a defect, not a pass**, because a PreToolUse `allow` skips the permission prompt for that call. The denies are what prove the hook is live; a clean path must produce no output at all, which leaves the normal permission flow in charge. Note the probe paths do not need to exist: the hook decides before the file is ever opened, which is what makes this safe to run anywhere. **An agent cannot run it inline in a session already protected by the hook**: the probe paths appear in the command text, and the hook scans command text, so it denies the self-test before it runs. Save it to a script file and run the file, or run it from your own terminal. A denial here is the hook working, not the test failing.
 
 ## Know what the blocklist does not cover
 
-It is a speed bump on the most common accident, not a boundary. Being precise about its limits is what stops it being over-trusted:
+It is a speed bump against the most common accident, an agent opening a credential file in the course of ordinary work, and not a boundary against anyone set on getting past it. Being precise about its limits is what stops it being over-trusted:
 
-- **It is specific to Claude Code.** It is a `PreToolUse` hook, a Claude Code feature. If your team uses Cursor, Copilot, Codex, Aider, or anything else, **you have no mechanical credential enforcement at all**, only the prose rule in the conventions. If that is your situation, build the equivalent in your own tool's permission or deny-list system, and until you have, treat the credentials policy as entirely dependent on the agent's compliance.
-- **It matches on paths and command text, so it can be worked around trivially.** A path assembled from variables, a file copied to an innocuous name first, or a tool that passes a directory rather than a file (`Grep`, `Glob`) all pass straight through. It is not an adversarial control and should never be described as one.
-- **Two committed templates are exempt by design: `.env.schema` and `.env.example`.** They exist to be read and are secret-free by purpose, so blocking them protected nothing and stopped documentation being checked against them. The exemption is exact, so `.env.example.bak` and every other variant stay blocked. The cost is that a project which puts live values in one of these two files has moved them outside the guard: keep them free of real values.
+- **It is specific to Claude Code.** It is a `PreToolUse` hook, a Claude Code feature. If your team uses Cursor, Copilot, Codex, Aider, or anything else, **agentics gives you no mechanical credential enforcement at all**, only the prose rule in the conventions. If that is your situation, build the equivalent in your own tool's permission or deny-list system, and until you have, treat the credentials policy as entirely dependent on the agent's compliance.
+- **It matches on paths and command text, so it can be worked around trivially.** A file name never written out literally in the command (held in a variable set by an earlier command, or assembled from pieces), a file copied to an innocuous name first, or a tool that passes a directory rather than a file (`Grep`, `Glob`) all pass straight through. It is not an adversarial control and should never be described as one.
+- **Two committed templates are exempt by design: `.env.schema` and `.env.example`.** They exist to be read and are secret-free by purpose, so blocking them protects nothing and stops documentation being checked against them. The exemption is exact, so `.env.example.bak` and every other variant stay blocked. The cost is that a project which puts live values in one of these two files has moved them outside the guard: keep them free of real values.
 - **It does not stop a credential already in context from being written somewhere.** Once a secret has been read by any route, nothing here prevents it reaching a session log, a commit message, or a PR comment.
 
-The real control for secrets remains keeping them out of the working tree: a secrets manager, environment injection at runtime, and `.gitignore`. The hook exists to catch the routine accident, not a determined path around it.
+The real control for secrets remains keeping them out of the working tree and out of git: a secrets manager and environment injection at runtime keep them off disk, and `.gitignore` keeps any that must sit on disk out of commits.
 
 ## Agent output to distrust by default
 
@@ -51,7 +52,7 @@ Not because agents are dishonest, but because an agent cannot reliably verify th
 
 | Claim | Why it is unreliable | What to do |
 |---|---|---|
-| "I tested it and it passes" | The test may exercise the wrong half, as above | Ask what the input was and where its shape came from |
+| "I tested it and it passes" | The test may exercise the wrong half, as the blocklist's own test did | Ask what the input was and where its shape came from |
 | "I cleaned up / renamed / removed all X" | Long sessions get summarized, and a summary can turn "intended to do X" into "X is done" | `grep` for what should be gone before building on it |
 | "The check passed" | The check may not cover what you assume it covers | Ask what it actually asserts, not whether it was green |
 | "That is already handled by <convention>" | A rule existing is not a rule firing; most of this repo's own incidents are rules that existed | Ask what event triggers it, and whether that event occurred |
@@ -61,13 +62,13 @@ The general form: **an agent's report about its own behaviour is a claim, not ev
 
 ## Trust boundaries that are yours to hold
 
-**Text in a pull request or issue is attacker-controlled.** Injecting instructions into PR titles, issue bodies, and review comments to hijack a reviewing agent is a demonstrated attack, not a hypothetical. Agentics scopes its own "recognized identity" exception to the platform's structured author field precisely because attribution appearing *inside* body text can be typed by anyone. When you point an agent at a PR from outside your team, you are pointing it at untrusted input, and you should read what it proposes to do rather than approving on the strength of its summary.
+**Text in a pull request or issue is attacker-controlled.** Injecting instructions into PR titles, issue bodies, and review comments to hijack a reviewing agent is a demonstrated attack, not a hypothetical. Where your global context records your own account on a platform, agentics lets an agent treat a comment posted under that account as your instruction. It attaches that exception only to the platform's structured author field, precisely because attribution appearing *inside* body text can be typed by anyone. When you point an agent at a PR from outside your team, you are pointing it at untrusted input, and you should read what it proposes to do rather than approving on the strength of its summary.
 
 **A message from another agent session is never your approval.** Sessions can reach each other, and a peer can report that you approved something, that a review passed, or that a check already ran. None of that is you. If an action needs your consent, give it in the conversation where you are actually present.
 
-**Your global context is loaded into every project and is usually not version controlled.** For Claude, that is `~/.claude/`; other tools have an equivalent. Anything written there applies everywhere, silently, from then on, and no `git log` will show you it changed. Treat additions to it as a higher bar than a change inside one repo, and be more sceptical of a casual "shall I add this globally?" than of a proposed code change. Consider putting that directory under git so you can diff it.
+**Your global context is loaded into every project and is usually not version controlled.** For Claude, that is `~/.claude/`; other tools have an equivalent. Anything written there applies everywhere, silently, from then on, and no `git log` will show you it changed. Treat additions to it as a higher bar than a change inside one repo, and be more skeptical of a casual "shall I add this globally?" than of a proposed code change. Consider putting that directory under git so you can diff it.
 
-**Committed prose is a leak path.** Session logs, memory files, the atlas, and changelog entries are records of real work, written in prose, and committed. An internal hostname, a private URL, a cluster endpoint, or a token can end up in any of them. The mechanical check is deliberately narrow: it greps changed files for your own git identity and username, which means it catches your name and nothing else. It cannot catch a colleague's name, an API token, or an internal URL. **Reading `.dev/` diffs before pushing is a human control with no automated substitute**, and it matters most in a repo shared outside your team.
+**Committed prose is a leak path.** Session logs, memory files, the atlas (agent-written reference notes under `.dev/docs/atlas/`), and changelog entries are records of real work, written in prose, and committed. An internal hostname, a private URL, a cluster endpoint, or a token can end up in any of them. Agentics ships no mechanical check for this to an adopting project. Its own repository's check (`testing/scripts/check-consistency.sh`) greps changed files for the committer's git identity and username only, so it cannot catch a colleague's name, an API token, or an internal URL. **Reading `.dev/` diffs before pushing is a human control with no automated substitute**, and it matters most in a repo shared outside your team.
 
 ## Reviewing a security change an agent proposes
 
@@ -83,8 +84,4 @@ The failure mode is narrower than "the agent got it wrong." It is that the chang
 - **A secret was read into context.** Assume it is compromised and rotate it. It may exist in the session transcript, a summary, or any file written afterward. Rotating is cheaper than establishing where it went.
 - **A secret reached a commit.** Rotate first, then deal with history. Removing it from a pushed branch does not un-publish it.
 - **An agent acted on injected instructions.** Check what it actually did (`git status`, `git log`, the working tree, anything it pushed or posted) before reading its account of what it did. Then check whether anything was written to your global context, since that is the change with the widest and least visible blast radius.
-- **Instruction files changed unexpectedly.** `git log -- AGENTS.md CLAUDE.md .claude/settings.json` and read the diff yourself. A semantic change ("never commit" softened into "commit when asked") looks trivial in a diff and only a human reading for meaning will catch it.
-
-## Where this fits
-
-`agent-security.md` has the threat model, the attack vectors, the agents' session-start integrity check, and an honest account of what agents cannot catch automatically. `conventions/security.md` and `conventions/security-guidelines.md` are the agent-facing application-security conventions. This file is the part that only works if a person does it.
+- **Instruction files changed unexpectedly.** Run `git diff HEAD -- AGENTS.md CLAUDE.md 'AGENTS.*.md' .claude/` for uncommitted edits and `git log -p -- AGENTS.md CLAUDE.md 'AGENTS.*.md' .claude/` for committed ones, and read the diff yourself. Only a human reading for meaning catches a semantic change.

@@ -145,7 +145,7 @@ else
   FAIL=1
 fi
 
-# 6. No AI-tool attribution in commit messages: session-discipline.md explicitly overrides an
+# 6. No AI-tool attribution in commit messages: git.md explicitly overrides an
 #    agent's own default commit template for this. Checks commits not yet pushed to the configured
 #    upstream (or just HEAD if no upstream is tracked), since a pushed commit is history to fix
 #    separately, not something this pre-commit-style check can catch usefully.
@@ -238,6 +238,8 @@ except Exception:
 " 2>/dev/null; }
     hook_bad=0
     # Each payload uses the key shape a real tool sends, so a key-name regression is caught.
+    # A single quote inside a command is written \u0027: these are single-quoted shell strings,
+    # so a bare one would end the string and the shell would strip it before the hook saw it.
     for probe in \
       'deny:{"tool_input":{"file_path":"/h/p/.env"}}' \
       'deny:{"tool_input":{"file_path":"/h/.ssh/id_rsa"}}' \
@@ -247,6 +249,17 @@ except Exception:
       'deny:{"tool_input":{"file_path":"/h/p/.env.example.bak"}}' \
       'none:{"tool_input":{"file_path":"/h/p/.env.schema"}}' \
       'none:{"tool_input":{"file_path":"/h/p/.env.example"}}' \
+      'deny:{"tool_input":{"command":"cat \u0027/h/p/.env\u0027"}}' \
+      'deny:{"tool_input":{"command":"cat \"/h/p/.env.local\""}}' \
+      'deny:{"tool_input":{"command":"x = [\u0027/h/p/.env\u0027, 1]"}}' \
+      'none:{"tool_input":{"command":"git add \u0027/h/p/.env.schema\u0027"}}' \
+      'none:{"tool_input":{"command":"x = [\u0027/h/p/.env.schema\u0027, 1]"}}' \
+      'none:{"tool_input":{"command":"git add \"/h/p/.env.example\""}}' \
+      'none:{"tool_input":{"command":"echo [a/.env.schema, b]"}}' \
+      'deny:{"tool_input":{"command":"echo [.env, b]"}}' \
+      'deny:{"tool_input":{"command":"scp host:.env ."}}' \
+      'deny:{"tool_input":{"command":"cat {.env,x}"}}' \
+      'none:{"tool_input":{"command":"cat ~/.ssh/id_rsa.pub"}}' \
       'none:{"tool_input":{"file_path":"/h/p/README.md"}}' \
       'none:{"tool_input":{"command":"ls -la"}}' \
       'none:{"tool_input":{}}'; do
@@ -322,13 +335,72 @@ else
 fi
 
 echo
-echo "== Naming the person: generic label in template files (review, not a failure) =="
-# Legitimate where the person is described to a third party, wrong where a shared instruction
-# file addresses or names them, and no check can separate those. Lists rather than fails. The
-# half that actually fails is conversational and ungreppable. See writing-style.md.
-if grep -rn "the user" template/ >/dev/null 2>&1; then
-  grep -rn "the user" template/ | cut -c1-150 | sed "s/^/  /"
-  echo "  (\"the developer\" in a shared instruction file; a name or \"you\" in a live reply)"
+echo "== The two security-guidelines.md copies match, apart from the canonical copy's header paragraph =="
+# The global-context copy stands alone once copied out, so it cannot point back; the two had
+# drifted apart while the canonical copy's header said they were identical.
+if command -v python3 >/dev/null 2>&1; then
+  python3 - <<'PYEOF'
+import re, sys
+canonical = open("template/conventions/security-guidelines.md").read()
+copy = open("template/global-context/security-guidelines.md").read()
+stripped = re.sub(r"\*\*This is the canonical copy\.\*\*[^\n]*\n\n", "", canonical, count=1)
+if stripped == copy:
+    print("  ok")
+    sys.exit(0)
+for n, (a, b) in enumerate(zip(stripped.split("\n"), copy.split("\n")), 1):
+    if a != b:
+        print(f"  FLAG: the copies differ first at line {n} of the global-context copy")
+        break
+else:
+    print("  FLAG: one copy has lines past the end of the other")
+sys.exit(1)
+PYEOF
+  if [ $? -ne 0 ]; then FAIL=1; fi
+else
+  echo "  skipped (python3 not found)"
+fi
+
+echo
+echo "== The project template's copy of § Critical constraints matches template/AGENTS.md's =="
+# A project's AGENTS.md keeps this copy so the constraints hold when reading agentics fails, and
+# upgrading-adoption.md re-copies it verbatim, so a template copy that drifted would ship drift
+# into every project at its next upgrade.
+if command -v python3 >/dev/null 2>&1; then
+  python3 - <<'PYEOF'
+import sys
+def section(path):
+    lines = open(path).read().split("\n")
+    start = lines.index("## Critical constraints")
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    return [l for l in lines[start:end]]
+shared = section("template/AGENTS.md")
+copy = section("template/AGENTS.project.md")
+if shared == copy:
+    print("  ok")
+    sys.exit(0)
+for n, (a, b) in enumerate(zip(shared, copy), 1):
+    if a != b:
+        print(f"  FLAG: the copy differs first at line {n} of the section")
+        break
+else:
+    print("  FLAG: one section has lines past the end of the other")
+sys.exit(1)
+PYEOF
+  if [ $? -ne 0 ]; then FAIL=1; fi
+else
+  echo "  skipped (python3 not found)"
+fi
+
+echo
+echo "== Naming the person: a second word for the user in template files (review, not a failure) =="
+# Template files call the person an agent works for "the user". "The developer" or "a developer" is legitimate
+# where it names the role or a project's own chosen word, and wrong where it is a second name for
+# the user, and no check can separate those. Lists rather than fails. The half that actually
+# fails is conversational and ungreppable. See writing-style.md § Naming the person you are
+# talking to.
+if grep -rniE "\b(the|a) developer\b" template/ >/dev/null 2>&1; then
+  grep -rniE "\b(the|a) developer\b" template/ | cut -c1-150 | sed "s/^/  /"
+  echo "  (\"the user\" in a shared instruction file, unless the project's subject matter owns the word; \"you\" in a live reply)"
 else
   echo "  ok"
 fi
@@ -379,12 +451,10 @@ if [ $? -ne 0 ]; then FAIL=1; fi
 
 echo "== Naming the agent: attribution that resolves to a peer =="
 # Sibling of the check above and, unlike it, a real failure, because this half is cleanly
-# greppable. The discriminator is whether the phrase resolves to someone a reader could go and
-# ask: a proper noun does, a bare article does not. So "Reported by the Arranger session" fails
-# and "Reported by a session that had read this file that morning" passes, the second being
-# evidence about the conditions rather than credit. A handle rotates and a label is conferred
-# per session, so the named form decays to nothing while inviting a reader to go and ask an
-# agent that no longer exists. See AGENTS.md § Critical constraints.
+# greppable: a proper noun after the verb names a source, so "Reported by the Arranger session"
+# fails. A persisted file names no source at all under AGENTS.md § Critical constraints, so the
+# anonymous form is noise too, but no pattern separates it from a sentence bounding evidence,
+# and it is left to a reader. A pass here covers the named form only.
 # Quoted spans are masked: this rule's own statement quotes the form it forbids.
 python3 - <<'PYEOF'
 import re, pathlib, sys
@@ -648,19 +718,25 @@ for f in scripts/*.sh testing/scripts/*.sh; do
 done
 if [ "$notexec" -eq 0 ]; then echo "  ok"; else FAIL=1; fi
 
-echo "== Every global-context file carries a version tag =="
-# A deployed copy in a global context is outside upstream-check.md's reach, so the tag is the
-# only way it can announce its own staleness. See CHANGELOG.md § deployed-global-context-cannot-know-it-is-stale.
-missing=0
-for f in template/global-context/*.md; do
-  if ! head -1 "$f" | grep -q 'agentics-template-version'; then
-    echo "  FLAG: $f has no version tag on line 1"
-    missing=1
+echo "== A version tag sits on exactly the files whose copies upstream-check.md compares =="
+# The rule is in CONTRIBUTING.md § Versioning. This list is that set: the check fails a tag
+# missing from a listed file, and a tag on any other file.
+compared=" template/AGENTS.project.md template/AGENTS.softeng.md template/AGENTS.overture.md $(echo template/AGENTS.roles/*.md) template/global-context/personal-preferences.md "
+tagerr=0
+for f in AGENTS.md $(find template -name '*.md' | sort); do
+  if head -1 "$f" | grep -qE 'agentics-(template-)?version'; then has=1; else has=0; fi
+  case "$compared" in *" $f "*) want=1 ;; *) want=0 ;; esac
+  if [ "$want" -eq 1 ] && [ "$has" -eq 0 ]; then
+    echo "  FLAG: $f has no version tag on line 1, and upstream-check.md compares its copies"
+    tagerr=1
+  elif [ "$want" -eq 0 ] && [ "$has" -eq 1 ]; then
+    echo "  FLAG: $f carries a version tag, and nothing compares it"
+    tagerr=1
   fi
 done
-if [ "$missing" -eq 0 ]; then echo "  ok"; else FAIL=1; fi
+if [ "$tagerr" -eq 0 ]; then echo "  ok"; else FAIL=1; fi
 
-echo "== Dash rule: all four banned forms, not just the two the prose check greps =="
+echo "== Dash rule over template/, docs/ and four root files, not CHANGELOG.md: all four banned forms, not just the two the prose check greps =="
 if command -v python3 >/dev/null 2>&1; then
   python3 - <<'PYEOF'
 import re, sys, glob
@@ -705,6 +781,142 @@ for path, n, what in bad:
     print(f"  FLAG: {path}:{n}: {what}")
 if not bad:
     print("  ok")
+sys.exit(1 if bad else 0)
+PYEOF
+  if [ $? -ne 0 ]; then FAIL=1; fi
+else
+  echo "  skipped (python3 not found)"
+fi
+
+echo "== Paragraph openings: none starts with \"I\", over template/, docs/ and six root files =="
+# writing-style.md § No paragraph opens with "I". Only a paragraph's first line is tested, since
+# a hard-wrapped continuation line can start with "I" mid-sentence; a list item or quoted line
+# starts a paragraph of its own.
+if command -v python3 >/dev/null 2>&1; then
+  python3 - <<'PYEOF'
+import re, sys, glob
+sys.dont_write_bytecode = True
+sys.path.insert(0, "testing/scripts")
+from patterns import PATTERNS
+OPEN = [p for _, p in PATTERNS["opening-i"]]
+START = re.compile(r"^\s*(?:[-*+]\s|\d+\.\s|>)")
+bad = []
+for path in sorted(set(glob.glob("template/**/*.md", recursive=True) + glob.glob("docs/*.md")
+                       + ["README.md", "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md", "CLAUDE.md", "CHANGELOG.md"])):
+    try:
+        raw = open(path).read()
+    except OSError:
+        continue
+    fenced, prev = False, ""
+    for n, line in enumerate(raw.split("\n"), 1):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced; prev = ""; continue
+        if fenced:
+            continue
+        starts = not prev.strip() or prev.lstrip().startswith("#") or START.match(line)
+        text = re.sub(r"`[^`]*`", "C", line.strip())
+        if starts and not line.lstrip().startswith(("|", "#", "<!--")) and any(p.search(text) for p in OPEN):
+            bad.append((path, n))
+        prev = line
+for path, n in bad:
+    print(f"  FLAG: {path}:{n}: paragraph opens with I")
+print("  ok" if not bad else "")
+sys.exit(1 if bad else 0)
+PYEOF
+  if [ $? -ne 0 ]; then FAIL=1; fi
+else
+  echo "  skipped (python3 not found)"
+fi
+
+echo "== Positional pointers: a section or phrase named with \"above\" or \"below\" is there in the same file =="
+# A split carries "above" and "below" into files where they point at nothing, and each move
+# looks correct at the time. A target is a heading, a bold lead, or the phrase stated unquoted:
+# a quoted occurrence is another pointer, and one broken pointer must not vouch for the next.
+# Validated against the 0.20.0 tree, where it raises the twelve pointers repointed by hand in
+# 0.21.0 plus the two that sweep missed.
+if command -v python3 >/dev/null 2>&1; then
+  python3 - <<'PYEOF'
+import pathlib, re, sys
+files = sorted(pathlib.Path("template").glob("**/*.md")) + sorted(pathlib.Path("docs").glob("*.md")) + \
+    [p for p in sorted(pathlib.Path(".").glob("*.md")) if p.name != "CHANGELOG.md"]
+KIND = r"(?:section|paragraph|rule|bullet|table|step|list|entry|note)"
+POINTERS = [
+    re.compile(r"§ ?([^.;:,()\n`]{3,90}?) (above|below)\b"),
+    re.compile(r"[\"“]([^\"”\n]{3,90})[\"”](?: " + KIND + r")? (above|below)\b"),
+]
+QUOTED = re.compile(r"[\"“][^\"”\n]*[\"”]")
+def norm(s):
+    return re.sub(r"\s+", " ", s.replace("`", "").replace("*", "")).strip().lower()
+bad = 0
+for p in files:
+    lines = p.read_text().split("\n")
+    targets = []
+    for i, line in enumerate(lines):
+        h = re.match(r"#{1,6}\s+(.*)", line)
+        if h:
+            targets.append((i, norm(h.group(1))))
+        b = re.match(r"\s*(?:[-*]\s+|\d+\.\s+)?\*\*(.+?)\*\*", line)
+        if b:
+            targets.append((i, norm(b.group(1))))
+    unquoted = [norm(QUOTED.sub(" ", l)) for l in lines]
+    for i, line in enumerate(lines):
+        for pat in POINTERS:
+            for m in pat.finditer(line):
+                name, where = norm(m.group(1)), m.group(2)
+                found = [j for j, t in targets if t.startswith(name) or (name.startswith(t) and len(t) > 8)]
+                found += [j for j, l in enumerate(unquoted) if name in l]
+                if not found:
+                    why = "names nothing in this file"
+                elif where == "above" and not any(j < i for j in found):
+                    why = "is below, not above"
+                elif where == "below" and not any(j > i for j in found):
+                    why = "is above, not below"
+                else:
+                    continue
+                print(f"  FLAG: {p}:{i + 1}: \"{m.group(0)}\" {why}; name the file and section instead")
+                bad += 1
+# Files copied into adopters' projects or global context are reordered and extended there, so a
+# direction that holds in the template can be false in the copy: any directional pointer fails.
+# template/AGENTS.md stays listed because its § Critical constraints is copied into every project.
+COPIED = ["template/AGENTS.md", "template/AGENTS.project.md", "template/AGENTS.softeng.md", "template/AGENTS.overture.md",
+          "template/global-context/personal-preferences.md"] + sorted(str(p) for p in pathlib.Path("template/AGENTS.roles").glob("*.md"))
+BARE = re.compile(r"\b(?:rules?|sections?|steps?|paragraphs?|bullets?|lists?|tables?|rows?|sentences?|constraints|parameters|items?|checklist|clause)\s+(above|below)\b"
+                  r"|\b(?:the|this|that) one (above|below)\b|\"[^\"\n]{3,60}\" (above|below)\b", re.I)
+for f in COPIED:
+    for i, line in enumerate(pathlib.Path(f).read_text().split("\n")):
+        for m in BARE.finditer(line):
+            print(f"  FLAG: {f}:{i + 1}: \"{m.group(0)}\" in a copied file; name the referent, since an adopter's order can differ")
+            bad += 1
+print("  ok" if not bad else f"  {bad} pointer(s)")
+sys.exit(1 if bad else 0)
+PYEOF
+  if [ $? -ne 0 ]; then FAIL=1; fi
+else
+  echo "  skipped (python3 not found)"
+fi
+
+echo "== agent-index.md: every section has a row in its act map, and every row names a real section =="
+# Sessions read only the sections § Which sections govern each act names for their act, so a section
+# missing from it is a rule no act's reading reaches, and a renamed one leaves a row pointing nowhere.
+if command -v python3 >/dev/null 2>&1; then
+  python3 - <<'PYEOF'
+import re, sys
+lines = open("template/conventions/agent-index.md").read().split("\n")
+MAP = "Which sections govern each act"
+heads = [l[3:] for l in lines if l.startswith("## ")]
+start = lines.index("## " + MAP)
+end = next(i for i in range(start + 1, len(lines)) if lines[i].startswith("## "))
+rows = "\n".join(l for l in lines[start:end] if l.startswith("|"))
+bad = 0
+for h in heads:
+    if h != MAP and "§ " + h not in rows:
+        print(f"  FLAG: \"{h}\" has no row in § {MAP}")
+        bad += 1
+for ref in re.findall(r"§ ([^;|]+)", rows):
+    if not any(ref.startswith(h) for h in heads):
+        print(f"  FLAG: § {MAP} names \"{ref.strip()}\", which is no section heading")
+        bad += 1
+print("  ok" if not bad else f"  {bad} mismatch(es)")
 sys.exit(1 if bad else 0)
 PYEOF
   if [ $? -ne 0 ]; then FAIL=1; fi

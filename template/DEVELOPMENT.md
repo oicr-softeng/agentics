@@ -43,4 +43,4 @@ Read the `.dev/` files at the start of each session before beginning work. Read 
 Common environment-specific gotchas, full detail lives in agentics' `template/conventions/agent-troubleshooting.md`:
 
 - **Your agent doesn't see a file you're actively editing.** It reads the filesystem directly and can't see unsaved editor content: save the file first, or paste it directly into the conversation instead. See § "Troubleshooting: agent doesn't see a file you're actively editing."
-- **Your agent's memory doesn't follow a project after a rename or a multi-root workspace setup.** Two different failure modes, each with its own fix. See § "Troubleshooting: agent won't load, or its memory doesn't follow a project."
+- **Your agent's memory doesn't follow a project after a rename or a multi-root workspace setup.** Two different failure modes, each with its own fix. See § "Troubleshooting: agent won't load, or its memory doesn't follow a project, after a rename or multi-root adoption."

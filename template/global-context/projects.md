@@ -1,10 +1,9 @@
-<!-- agentics-template-version: see CHANGELOG.md § Released (latest entry) -->
 # Project Map
 
 Global index of known projects, memory locations, and key cross-project relationships.
 Place this file in your agent's global context directory (for Claude: `~/.claude/projects.md`; for other agents: consult your agent's docs). Update it when a new project is set up or when paths change.
 
-**Repo URL vs local Path:** when a task references a project's GitHub URL (a doc link, a PR target, "check the latest conventions"), prefer reading the local `Path` over fetching the URL: it's faster and may be ahead of origin (uncommitted or unpushed work). Verify freshness first, and verify the right thing: confirm the local clone's configured remote(s) actually include the canonical URL recorded above (`git remote -v`) before trusting `git log @{u}..` in that directory. `@{u}` only reports how far local is behind whatever it happens to track, not whether that's the right remote at all. A clone pointed at a stale personal fork or an unintended mirror can report "0 behind" while still being badly out of date relative to the canonical source. Don't skip this check for a repo you believe you're the sole maintainer of: that belief can silently stop being true the moment a new contributor joins, and the check itself costs only one cheap `git fetch`.
+**Repo URL vs local Path:** when a task references a project's GitHub URL (a doc link, a PR target, "check the latest conventions"), prefer reading the local `Path` over fetching the URL: it's faster and may be ahead of origin (uncommitted or unpushed work). Verify freshness first, and verify the right thing: confirm the local clone's configured remote(s) actually include the entry's own `Repo URL` (`git remote -v`) before trusting `git log @{u}..` in that directory. `@{u}` only reports how far local is behind whatever it happens to track, not whether that's the right remote at all. A clone pointed at a stale personal fork or an unintended mirror can report "0 behind" while still being badly out of date relative to the canonical source. Don't skip this check for a repo you believe you're the sole maintainer of: that belief can silently stop being true the moment a new contributor joins, and the check itself costs only one cheap `git fetch`.
 
 ---
 
@@ -12,7 +11,7 @@ Place this file in your agent's global context directory (for Claude: `~/.claude
 
 Projects known to have adopted agentics (a project that adopts it becomes "agentic"): list them by name only, e.g. `org/project-a`, `org/project-b`.
 
-Update this list only when a project adopts or drops agentics entirely, not on every version sync: each project's current synced version already lives canonically in that project's own `AGENTS.md` tag, restating it here would just go stale once any one of them syncs.
+Update this list only when a project adopts or drops agentics entirely, not on every upgrade: each project's pinned release already lives canonically on the first line of that project's own `AGENTS.md`, and restating it here would go stale once any one of them moves its pin.
 
 ---
 

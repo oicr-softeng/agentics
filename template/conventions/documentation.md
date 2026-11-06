@@ -10,7 +10,7 @@ This is a register problem, not an information-density problem: the same content
 > This is a deliberate correction, twice over: an earlier draft passed the retry count as one mutable counter shared across call sites, which meant two unrelated failures could double-count against the same limit; switching to a per-call token avoids that, and also sidesteps the race condition flagged in review, which is exactly the kind of coupling this refactor exists to remove.
 
 **Plain, same information:**
-> Draft 1 passed the retry count as one shared mutable counter. Two unrelated failures could double-count against the same limit.
+> One shared mutable retry counter lets two unrelated failures double-count against the same limit.
 >
 > Fix: one token per call. No shared state, nothing to race on.
 
@@ -20,7 +20,7 @@ The second reads in one pass because it separates what happened from why it matt
 
 - **One idea per sentence.** A sentence with a semicolon joining two independent claims, or two or more parenthetical asides, should usually be split.
 - **State the conclusion first**, in a short sentence or a bold lead-in label ("Why this changed:", "The math:"). Justification and caveats come after it, not wrapped around it.
-- **Never reference "the earlier version" or "as discussed" without restating what it said**, right there, in one plain sentence. A reader who was not in the room cannot resolve that reference.
+- **Never reference "the earlier version" or "as discussed" without restating what it said**, right there, in one plain sentence.
 - **Give worked examples their own block**: a short list or a code snippet, not inline prose math or a parenthetical.
 - **Minimize forced cross-reference chains.** If understanding one paragraph requires reading two other sections first, inline the minimum context instead.
 
@@ -54,9 +54,7 @@ The failure has two depths, not one. A chain of `X → Y`, `Y → Z`, `Z → A` 
 >
 > Correct: "the handler is `handleIncoming`."
 > Wrong, chained: "further renamed `processRequest` to `handleIncoming`."
-> Wrong, still noise even unchained: "renamed the handler from `processRequest` to `handleIncoming`." Nothing ever shipped as `processRequest`, so a reader gains nothing from being told it once existed.
-
-Once content is committed, git history is the record of how it got there. Before that point, the file's job is to state the current fact, not preserve a draft's own revision log.
+> Wrong, still noise even unchained: "renamed the handler from `processRequest` to `handleIncoming`."
 
 **Exception: a document whose entire job is recording change.** A CHANGELOG entry, a migration guide, a PR description: there, "renamed X to Y" is the point, not noise, since a reader or their deployed instance may actually have been running the "before" state against. This exception is narrow: artifacts whose stated purpose is documenting a transition for someone on the other side of it, not roadmap items, tech-debt entries, or convention prose describing current design.
 
@@ -64,9 +62,22 @@ Once content is committed, git history is the record of how it got there. Before
 
 Keep such a note in project documentation only when a reader would otherwise recreate the thing, or is holding a stale local copy that needs action. Then write it as the action, not as history ("delete `<path>` if you still have one" rather than "`<path>` was removed"), and put it where that action is actually taken, which is usually the migration or upgrade path rather than a general guide. Once the migration window has passed, it goes.
 
-Check the audience too, since a removal note fails especially quietly when it is aimed at a tool rather than a person. Confirmed directly: an adopting project's `DEVELOPMENT.md` recorded the removal of a Copilot-specific instructions file. A human contributor reading that guide does not need to know a file that no longer exists once did, and a Copilot agent, the note's only possible audience, never reads `DEVELOPMENT.md` at all. Content placed where its intended audience does not look is a recurring failure in its own right; see § Two-tier model for which reader each tier is actually written for.
+Check the audience too, since a removal note fails especially quietly when it is aimed at a tool rather than a person. One project's `DEVELOPMENT.md` recorded the removal of a Copilot-specific instructions file. A Copilot agent, the note's only possible audience, never reads `DEVELOPMENT.md` at all. Content placed where its intended audience does not look is a recurring failure in its own right; see § Two-tier model for which reader each tier is actually written for.
 
-**Exception: session files close earlier, at day's end, not at commit.** `entry-formats.md`'s "Collapse iteration to outcome" applies this same principle to `.dev/sessions/` entries, but with a stricter boundary than "uncommitted": a session file is meant to be an honest same-day account, so it stays open only while that day's work continues, even if it happens to remain uncommitted for days afterward (nothing requires committing same-day). See that section for the full reasoning. This is a narrower exception, not a looser instance, of the rule above.
+**Exception: session files close earlier, at day's end, not at commit.** `entry-formats.md`'s "Collapse iteration to outcome" applies this same principle to `.dev/sessions/` entries, but with a stricter boundary than "uncommitted": a session file is meant to be an honest same-day account, so it stays open only while that day's work continues, even if it happens to remain uncommitted for days afterward (nothing requires committing same-day). See that section for the full reasoning.
+
+## A breaking change ships its migration path
+
+**A change that deprecates, removes, renames or changes the meaning of any interface or behaviour used by consumers ships with a migration-guide section in the same unit of work, never as a follow-up.** Consumers meet the change when they upgrade, and a guide written afterwards reaches them after they have already broken.
+
+- **Each section says what changed, who is affected, how to tell, and what to do**, under a stable anchor.
+- **A runtime deprecation warning names the replacement and links to that section**, by a URL pinned to the release tag, so the link survives later edits to the guide.
+- **A deprecation never says when the thing goes away**, wherever it appears: a warning, the changelog, the guide or a README names what is deprecated, what replaces it and where the migration path is, and gives no version, no date, and not even "will be removed in a future release". Removal still takes a major version under semantic versioning; which one is not promised in advance.
+- **Before a release, every breaking or meaning-changing entry under the changelog's unreleased heading is checked against the guide**, and an entry with no section is fixed before the release ships.
+- **A guide covers one release to the next, never release candidates**, as from 3.0.x to 3.1.0: no notes for someone coming from a candidate, no version-range advice for candidates, and no section about a change made and unmade within one release's candidates, since candidate users accept breaking changes between candidates.
+- **For a security fix, the section states the requirement and the fix only**, under `security.md` § Releasing the fix for a hole carried by a published release.
+
+Where the guide lives is the project's choice, a `MIGRATION.md` or a docs page.
 
 ## Two-tier model
 
@@ -81,13 +92,13 @@ Neither layer is optional for projects with external users. Docs that only exist
 
 ## The atlas: `.dev/docs/atlas/`, indexed and cross-linked
 
-Agent-generated reference material (a lessons-learned write-up, a roadmap entry's relocated depth) accumulates unpredictably over time in a way pre-existing per-service docs don't: nothing guarantees it lands anywhere navigable on its own. Give it its own subfolder, `.dev/docs/atlas/`, rather than mixing it into whatever a project already has directly under `.dev/docs`: this keeps existing human-curated service docs completely untouched, no retroactive index or cross-linking requirement gets imposed on content that predates this and was never meant to carry it. A negative result belongs here the same as a positive one, "X doesn't work because Y" is exactly this subfolder's kind of reference material, written as a fact about the system per `session-discipline.md`'s "Describe the system, not the struggle to find it," not as an account of the investigation that found it.
+Agent-generated reference material (a lessons-learned write-up, a roadmap entry's relocated depth) accumulates unpredictably over time in a way pre-existing per-service docs don't: nothing guarantees it lands anywhere navigable on its own. Give it its own subfolder, `.dev/docs/atlas/`, rather than mixing it into whatever a project already has directly under `.dev/docs`. A negative result belongs here the same as a positive one, "X doesn't work because Y" is exactly this subfolder's kind of reference material, written as a fact about the system per `session-discipline.md`'s "Describe the system, not the struggle to find it," not as an account of the investigation that found it.
 
-Maintain `.dev/docs/atlas/index.md`: one line per topic, name and a one-sentence description, the same shape `MEMORY.md` already uses for project memory. Create it when the first atlas topic file is added, and update it whenever a later one is, not batched for later; don't leave "do I need one yet" as a judgment call.
+Maintain `.dev/docs/atlas/index.md`: one line per topic, name and a one-sentence description, the same shape `MEMORY.md` already uses for project memory. Create it when the first atlas topic file is added, and update it whenever a later one is, not batched for later.
 
 Within an atlas topic file, link to a genuinely related one with a normal relative markdown link (`[roadmap: nesting config](../roadmap/nesting-config.md)`), not a special syntax: unlike project memory, `.dev/docs` files live in the same repo at stable paths, so an ordinary link already works and stays clickable in the repo browser and on GitHub. Link liberally when a real relationship exists; don't force a link where there isn't one just to make the corpus look more connected than it is.
 
-**Live-investigation output needs a draft step before it reaches the atlas, not a direct write.** A number just pulled from a live server, a specific example not yet checked for whether it's actually representative, still-unverified findings from an active investigation: writing these straight into `.dev/docs/atlas/` risks committing half-settled, over-specific material to a permanent artifact. Confirmed directly: a depth count and a schema's specific field names both went straight into permanent atlas content before being verified, each needing a multi-file surgical correction once the investigation actually settled and proved the first version wrong. Stage genuinely unverified investigation output as a draft in project memory space instead (`<project-memory-dir>/drafts/*.md`; never indexed in `MEMORY.md`, so it's never auto-loaded into context), then promote it, verified and appropriately genericized, into the atlas once the investigation is settled, replacing the draft rather than leaving both. This is for output still being actively verified, not routine writing: an already-confirmed fact goes directly into the atlas as normal, no staging needed.
+**Live-investigation output needs a draft step before it reaches the atlas, not a direct write.** A number just pulled from a live server, a specific example not yet checked for whether it's actually representative, still-unverified findings from an active investigation: writing these straight into `.dev/docs/atlas/` risks committing half-settled, over-specific material to a permanent artifact. A depth count and a schema's field names went into the atlas unverified, and each needed a multi-file correction once the investigation settled. Stage genuinely unverified investigation output as a draft in project memory space instead (`<project-memory-dir>/drafts/*.md`; never indexed in `MEMORY.md`, so it's never auto-loaded into context), then promote it, verified and appropriately genericized, into the atlas once the investigation is settled, replacing the draft rather than leaving both. This is for output still being actively verified, not routine writing: an already-confirmed fact goes directly into the atlas as normal, no staging needed.
 
 **Roadmap depth lives here too, not just service docs.** `.dev/docs/atlas/roadmap/<topic>.md` is where a roadmap entry's deeper reasoning, alternatives considered, or history goes once it needs more than a sentence or two, the same pointer-versus-substance split `definition-of-done.md`'s lessons-learned criterion already applies to memory versus `.dev/docs`, now applied to `roadmap.md` itself. See `session-discipline.md` § Keeping `.dev/` current for when this split is actually in effect for a given project: it's opt-in, not a default.
 
@@ -95,13 +106,13 @@ Within an atlas topic file, link to a genuinely related one with a normal relati
 
 **The tell: read the summary as someone who will never open the linked file. If it no longer says what the work is, the split took meaning with it.** Checkable by a reader who does not know the subject, and checkable on the entry alone without opening the file, which is what makes it cheap.
 
-**This is the more dangerous kind of defect because nobody is doing anything wrong when it happens.** It also pairs with a failure already covered here: a file linked only from a roadmap entry becomes unreachable when that entry is completed and removed. Both come from the same act of moving text out of the place that referenced it, one costing reachability and the other comprehension. Tested against this repository's own roadmap when the rule was written: five entries point at atlas content and four stand alone unaided, with the fifth failing a different tell, a positional reference to a neighbouring entry, already covered by `writing-style.md` § Density. So the class is real and this corpus is not currently an instance of it.
+**This is the more dangerous kind of defect because nobody is doing anything wrong when it happens.** It also pairs with a failure already covered here: a file linked only from a roadmap entry becomes unreachable when that entry is completed and removed. Both come from the same act of moving text out of the place that referenced it, one costing reachability and the other comprehension.
 
 ## Cross-linking, not duplication
 
 When a topic needs both a consumer-facing summary and internal depth, keep the full explanation in one location and cross-link from the other. Duplication creates drift: two descriptions of the same behaviour will disagree.
 
-**Search before adding a new section, the same habit `code-style.md`'s "Searching before writing" already requires for code.** A topic that already has coverage somewhere in the same document rarely looks like duplication while you're writing it: it reads as a new section on a related aspect, not as restating something. Check whether the topic is already covered elsewhere in the document before writing a new section for it; if it is, extend or cross-link the existing one instead of adding a second description that will drift from the first.
+**Search before adding a new section, the same habit `code-style.md`'s "Searching before writing" already requires for code.** A topic that already has coverage somewhere in the same document rarely looks like duplication while you're writing it: it reads as a new section on a related aspect, not as restating something. **This is the default for any new material, not only for a topic already covered: sharpen an existing section, and add a section only for a class of thing no section covers.** The check is to list the section titles in the document and its neighbours and name the one the material belongs in. Material arriving from a review, a report or another session goes through the same check, since whoever found it frames it as new. Unless a file's own rules say otherwise, this holds for every kind of file and work.
 
 Which location is primary depends on the intended audience:
 
@@ -125,7 +136,7 @@ Any link from a `/docs` page to a `.dev/docs` file must use the full GitHub repo
 [search engine integration guide](../.dev/docs/search-engine-integration.md#permission-reference)
 ```
 
-The external docs site does not have access to the project's `.dev/` directory. A relative path will resolve correctly when browsing the repo locally or on GitHub, but will 404 on any hosted docs site. A full GitHub URL is stable across both contexts.
+The external docs site does not have access to the project's `.dev/` directory.
 
 Use the default branch (`main` or `master`, whichever is the published branch) in the URL, not a commit SHA or feature branch.
 
